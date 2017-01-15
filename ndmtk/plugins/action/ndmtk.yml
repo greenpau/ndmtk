@@ -1,0 +1,150 @@
+---
+#
+# ndmtk - Network Discovery and Management Toolkit
+# Copyright (C) 2016 Paul Greenberg @greenpau
+# See LICENSE.txt for licensing details
+#
+
+allowed_os:
+- name: 'arista_eos'
+  facts:
+  - pattern: '(?P<os_vendor>[Aa]rista)\s+(?P<os_name>EOS|vEOS)\s*$'
+    add:
+    - 'os_class=arista_eos'
+  - pattern: '[Ss]ystem MAC [Aa]ddress:\s+(?P<hardware_macaddr>\S{14})$'
+  - pattern: 'Software image version:\s+(?P<os_version_major>\w+)\.(?P<os_version_minor>\w+)\.(?P<os_version_patch>\w+)'
+  - pattern: 'Architecture:\s+(?P<os_arch>\w+)'
+  - pattern: 'Internal build version:\s+(?P<os_internal_build_version>\S+)'
+  - pattern: 'Internal build ID:\s+(?P<os_internal_build_id>\S+)'
+  - pattern: 'Serial number:\s+(?P<hardware_serial>\S+)'
+  - pattern: 'Hardware version:\s+(?P<hardware_version>\S+)'
+  - pattern: 'Arista (?P<hardware_platform>DCS\S+)'
+    add:
+    - 'os_vendor=Arista'
+    - 'os_name=EOS'
+    - 'os_class=arista_eos'
+  - pattern: 'Uptime:\s+(?P<uptime>\d+.*)'
+  - pattern: 'Total memory:\s+(?P<memory_total>\d+.*)'
+  - pattern: 'Free memory:\s+(?P<memory_free>\d+.*)'
+- name: 'cisco_acs'
+- name: 'cisco_asa'
+- name: 'cisco_ios'
+- name: 'cisco_iosxe'
+- name: 'cisco_ironport'
+- name: 'cisco_nxos'
+- name: 'cisco_nxos_cmp'
+- name: 'cisco_nxos_mds'
+- name: 'citrix_netscaler'
+- name: 'junos_qfx'
+- name: 'junos_srx'
+- name: 'generic_linux'
+  set_prompt:
+  - 'PS1=ndmtkterminal#'
+  exit_sequence:
+  - 'history -c'
+  - 'exit'
+- name: 'opengear_linux'
+- name: 'paloalto_panos'
+- name: 'nuage_timos'
+  disable_paging:
+  - 'environment no more'
+  exit_sequence:
+  - 'logout'
+
+allowed_ref_tags:
+- 'configuration'
+- 'version'
+- 'conf'
+- 'logs'
+- 'services'
+- 'processes'
+- 'environment'
+- 'binaries'
+- 'users'
+
+allowed_formats:
+- 'txt'
+- 'out'
+- 'json'
+- 'xml'
+
+output_filter_remove:
+- '^!Time:'
+- 'Load for five secs'
+- 'Time source is '
+- 'ntp clock-period'
+- '^!Time:'
+- '^Kernel uptime is'
+- '^Holdtime:'
+- '^Holdtime :'
+- ' uptime is '
+- 'Switch Uptime '
+- 'Current Time'
+- 'mask the password'
+- '!Startup config saved at'
+- 'Uptime for '
+- 'switched to active is'
+- 'Age of the port-channel is'
+- 'Time since last bundle is'
+- 'Topology file'
+- 'Initiated from node'
+- '! NVRAM config last updated'
+- '\s+Done'
+- 'Do you want to mask the password'
+- '^\[edit\]'
+
+output_filter_replace:
+- regex:
+  - '-Press Any Key For More-'
+  - 'Time Remaining.*'
+  - '[ ]*$'
+  replace: ''
+
+output_errors:
+- regex:
+  - "[Aa]mbiguous [Cc]ommand"
+  - "ERROR: Ambiguous"
+  msg: "ambiguous command"
+- regex:
+  - "[Ii]ncomplete [Cc]ommand"
+  msg: "incomplete command"
+- regex:
+  - "[Ii]nvalid [Ii]nput"
+  - "[Ii]nvalid [Aa]rgument"
+  msg: "invalid input"
+  exception:
+  - "show logging"
+- regex:
+  - "WARNING:"
+  msg: "command resulting in warning"
+  exception:
+  - "^cat "
+  - "^ps "
+  - "^systemctl "
+- regex:
+  - "ERROR:"
+  msg: "command resulting in error"
+- regex:
+  - "[Ss]yntax error"
+  - "[Ii]nvalid [Ss]yntax"
+  msg: "syntax error"
+  exception:
+  - "show tech"
+  - "show logging"
+- regex:
+  - "[Uu]nknown command"
+  msg: "unknown command"
+  exception:
+  - "show tech"
+  - "show logging"
+- regex:
+  - "[Ii]nvalid [Cc]ommand"
+  msg: "invalid command"
+  exception:
+  - "show tech"
+  - "show logging"
+- regex:
+  - "[Pp]ermission [Dd]enied"
+  msg: "lack of privilege (permission denied)"
+  os:
+  - 'linux'

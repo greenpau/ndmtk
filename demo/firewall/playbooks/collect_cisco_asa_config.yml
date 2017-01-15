@@ -1,0 +1,12 @@
+---
+- hosts:
+  - ny-fw01
+  gather_facts: no
+  tasks:
+  - name: collect firewall configuration
+    action: ndmtk
+            no_host_key_check=yes
+            disable_defaults=yes
+            on_error=continue
+            cliset_spec=files/ndmtk/spec/{{ inventory_hostname_short }}.config.yml
+            output_dir="/tmp/ndmtk-%Y%m%d"

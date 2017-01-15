@@ -1,0 +1,7 @@
+---
+- hosts:
+  - ny-fw01
+  gather_facts: no
+  tasks:
+  - name: collect running configuration only
+    action: ndmtk output="/tmp/ndmtk-%Y%m%d" sections="configuration, version"

@@ -1,0 +1,45 @@
+---
+#
+# ndmtk - Network Discovery and Management Toolkit
+# Copyright (C) 2016 Paul Greenberg @greenpau
+# See LICENSE.txt for licensing details
+#
+# File: plugins/action/files/cli/os/cisco_asa.yml
+#
+ndmtk:
+- cli: show running-config
+  tags: configuration
+  paging: 'terminal pager 0'
+- cli: show version
+  tags: version
+- cli: show arp
+- cli: show clock
+- cli: show ntp associations
+  conditions_match_any:
+  - '^ntp server'
+- cli: show ntp status
+  conditions_match_any:
+  - '^ntp server'
+- cli: show startup-config
+- cli: show interface
+- cli: show access-list
+  conditions_match_any:
+  - '^access-list'
+- cli: show ip address
+- cli: show module all
+- cli: show failover
+  conditions_match_any:
+  - '^failover lan unit'
+  - '^failover link'
+  - '^failover interface'
+- cli: show route
+- cli: show traffic
+- cli: show asp drop
+- cli: show wccp
+  conditions_match_any:
+  - '^wccp '
+- cli: show nat
+  conditions_match_any:
+  - '^global\s\('
+  - '^\s*nat\s\('
+  - '^static\s\('

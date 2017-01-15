@@ -1,0 +1,22 @@
+---
+#
+# ndmtk - Network Discovery and Management Toolkit
+# Copyright (C) 2016 Paul Greenberg @greenpau
+# See LICENSE.txt for licensing details
+#
+# File: plugins/action/files/cli/os/cisco_acs.yml
+#
+ndmtk:
+- cli: show running-config
+  tags: configuration
+  paging: 'terminal length 0'
+- cli: show cdp neighbors
+- cli: show clock
+- cli: show inventory
+- cli: show interface
+- cli: show startup-config
+- cli: show ntp
+- cli: show ports
+- cli: show version
+  tags: version
+- cli: show ip route

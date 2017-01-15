@@ -1,0 +1,12 @@
+---
+ndmtk:
+- pre: |
+    conf t
+    clear config access-list TEST
+  cli: |
+    access-list TEST extended permit ip host 209.165.200.225 host 209.165.201.1
+    access-list TEST extended permit ip host 209.165.200.225 host 209.165.201.2
+  post: |
+    exit
+    exit
+  mode: configure

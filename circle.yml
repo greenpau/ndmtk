@@ -1,0 +1,45 @@
+general:
+  branches:
+    ignore:
+      - test
+      - admin
+
+machine:
+  timezone:
+    America/New_York
+  python:
+    version: 2.7.5
+  environment:
+    PACKAGE: ndmtk
+    VERSION: '0.1'
+    TAG1: ${VERSION}-$(date +%Y%m%dT%H%M)-git-${CIRCLE_SHA1:0:7}
+    TAG2: ${CIRCLE_PR_USERNAME}_${CIRCLE_BRANCH/pull\//pr_}
+  services:
+    - docker
+
+dependencies:
+  override:
+    - docker info
+    - docker version
+    - git branch
+    - git remote -v
+    - cat .git/config
+    - pwd
+    - ls -alh
+    - pip install GitPython
+    - pip install ansible==2.1.0.0
+    - sudo apt-get update
+    - sudo apt-get install pandoc expect
+    - cp demo/firewall/ansible.vault.yml ~/.ansible.vault.yml
+    - cp demo/firewall/ansible.vault.key ~/.ansible.vault.key
+
+test:
+  override:
+    - make package
+    - pip install dist/${PACKAGE}-${VERSION}.tar.gz
+    - cd demo/firewall && ansible-playbook playbooks/collect_all.yml --check -vvv
+  post:
+    - mkdir -p ${CIRCLE_ARTIFACTS}/junit/
+    - find ~/.ansible -type f -regextype posix-egrep -regex ".*\.(junit\.xml|meta\.yml|meta\.json)" -exec cp {} ${CIRCLE_ARTIFACTS}/junit/ \;
+    - mkdir -p ${CIRCLE_TEST_REPORTS}/junit/
+    - find ~/.ansible -type f -regextype posix-egrep -regex ".*\.(junit\.xml|meta\.yml|meta\.json)" -exec cp {} ${CIRCLE_TEST_REPORTS}/junit/ \;

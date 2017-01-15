@@ -1,0 +1,17 @@
+#
+# Managed devices
+#
+
+controller ansible_connection=local
+
+[test:children]
+cisco-asa-firewalls
+
+[cisco-asa-firewalls]
+ny-fw01 os=cisco_asa host_overwrite=192.168.99.39
+ny-fw02 os=cisco_asa host_overwrite=192.168.99.39 host_protocol=telnet
+ny-fw03 os=paloalto_panos host_overwrite=192.168.99.38
+
+[all:vars]
+ansible_connection=local
+contact_person=Paul Greenberg @greenpau

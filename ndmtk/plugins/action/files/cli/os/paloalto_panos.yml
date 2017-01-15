@@ -1,0 +1,28 @@
+---
+#
+# ndmtk - Network Discovery and Management Toolkit
+# Copyright (C) 2016 Paul Greenberg @greenpau
+# See LICENSE.txt for licensing details
+#
+# File: plugins/action/files/cli/os/paloalto_panos.yml
+#
+
+ndmtk:
+- cli: show config running
+  tags: configuration
+  paging: 'set cli pager off'
+  scripting: 'set cli scripting-mode on'
+- cli: show system info
+  tags: version
+- cli: show session info
+- cli: show interface all
+- cli: show routing route
+- cli: show routing protocol bgp summary
+- cli: show routing protocol bgp peer
+- cli: show arp all
+- cli: show mac all
+- cli: show running nat-policy
+- cli: show running security-policy
+- cli: show running pbf-policy
+- cli: show system services
+- cli: show routing protocol bgp summary

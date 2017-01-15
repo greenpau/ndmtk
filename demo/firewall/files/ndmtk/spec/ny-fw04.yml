@@ -1,0 +1,13 @@
+---
+ndmtk:
+- pre: |
+    set cli config-output-format set
+    set cli pager off
+    set cli terminal width 500
+    set cli scripting-mode on
+    configure
+  cli: show
+  post: |
+    exit
+  saveas: '%h.config'
+  mode: analytics

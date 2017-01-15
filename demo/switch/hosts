@@ -1,0 +1,16 @@
+#
+# Managed devices
+#
+
+controller ansible_connection=local
+
+[test:children]
+arista-eos-switches
+
+[arista-eos-switches]
+ny-sw01 os=arista_eos host_overwrite=localhost host_port=8224
+ny-sw02 os=arista_eos host_overwrite=localhost host_port=8225
+
+[all:vars]
+ansible_connection=local
+contact_person=Paul Greenberg @greenpau

@@ -1,0 +1,18 @@
+---
+#
+# ndmtk - Network Discovery and Management Toolkit
+# Copyright (C) 2016 Paul Greenberg @greenpau
+# See LICENSE.txt for licensing details
+#
+# File: plugins/action/files/cli/os/opengear_linux.yml
+#
+
+ndmtk:
+- cli: cat /etc/config/config.xml
+  tags: configuration
+  format: xml
+- cli: cat /etc/version
+  tags: version
+- cli: route
+- cli: ip addr show
+- cli: arp

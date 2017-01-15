@@ -1,0 +1,27 @@
+---
+#
+# ndmtk - Network Discovery and Management Toolkit
+# Copyright (C) 2016 Paul Greenberg @greenpau
+# See LICENSE.txt for licensing details
+#
+# File: plugins/action/files/cli/os/citrix_netscaler.yml
+#
+
+ndmtk:
+- cli: show ns runningConfig
+  tags: configuration
+  paging: 'set cli mode -page OFF'
+- cli: show version
+  tags: version
+- cli: show ns mode
+- cli: show license
+- cli: show ns mode
+- cli: show feature
+- cli: show vlan
+- cli: show server
+- cli: show arp
+- cli: show hardware
+- cli: show interface
+- cli: show ip
+- cli: show route
+- cli: show ns savedConfig

@@ -1,0 +1,351 @@
+---
+#
+# ndmtk - Network Discovery and Management Toolkit
+# Copyright (C) 2016 Paul Greenberg @greenpau
+# See LICENSE.txt for licensing details
+#
+# File: plugins/action/files/cli/os/generic_linux.yml
+#
+
+ndmtk:
+- description: 'collect operating system information'
+  cli: 'uname -a'
+  saveas: '%h.uname.txt'
+  tags: ['ref:version']
+- description: 'collect the file listing of log files'
+  cli: 'find /var/log/ -maxdepth 10 -type f -print | sed "s/\/\//\//"'
+  tags: ['ref:logs', 'configuration']
+  saveas: '%h.files.logs.txt'
+- description: 'collect the file listing of configuration files'
+  cli: 'find /etc -maxdepth 10 -type f -print | sed "s/\/\//\//"'
+  tags: ['ref:conf', 'configuration']
+  saveas: '%h.files.etc.txt'
+- description: 'collect the listing of environment variables'
+  cli: 'env | sed ""'
+  tags: ['ref:environment', 'configuration']
+  saveas: '%h.environment.txt'
+- description: 'collect the file listing of binaries in PATH'
+  cli: 'find $(env | grep "^PATH=" | sed "s/PATH=//;s/:/ /g") -maxdepth 10 -type f -print | sed "s/\/\//\//"'
+  tags: ['ref:binaries', 'configuration']
+  saveas: '%h.files.bin.txt'
+- description: 'collect the list of processes running on a system'
+  cli: 'ps -ef | sed ""'
+  tags: ['ref:processes', 'configuration']
+  saveas: '%h.processes.txt'
+  conditions_match_any:
+  - 'tag:binaries:.*bin/ps$'
+- description: 'collect information about current user'
+  cli: 'id | sed "s/) /)\n/g;s/^/privileges:/"'
+  tags: ['ref:users', 'configuration']
+  saveas: '%h.user.id.txt'
+  conditions_match_any:
+  - 'tag:binaries:.*bin/id$'
+- description: 'collect information about system services via systemd'
+  cli: 'systemctl --no-pager | sed "s/^\s*//"'
+  tags: ['ref:services', 'configuration']
+  saveas: '%h.services.txt'
+  conditions_match_any:
+  - 'tag:processes:.*/systemd.*--system'
+- description: 'collect RHEL or CentOS version information'
+  cli: 'cat /etc/redhat-release'
+  tags: ['ref:version', 'configuration']
+  saveas: '%h.version.txt'
+  conditions_match_any:
+  - 'tag:conf:/etc/redhat-release'
+- description: 'collect current time'
+  cli: 'date'
+  tags: clock
+- description: 'collect ip addressing information'
+  cli: 'ip addr show'
+  tags: ['network']
+  conditions_match_any:
+  - 'tag:binaries:.*bin/ip$'
+- description: 'collect ip addressing information via sysctl'
+  cli: 'ifconfig -a'
+  tags: ['network']
+  conditions_match_any:
+  - 'tag:binaries:.*bin/ifconfig$'
+- description: 'collect hostname information'
+  cli: 'hostname'
+  tags: ['network']
+  conditions_match_any:
+  - 'tag:binaries:.*bin/hostname$'
+- description: 'collect ip routing information'
+  cli: 'ip route'
+  tags: ['network']
+  conditions_match_any:
+  - 'tag:binaries:.*bin/ip$'
+- description: 'collect ip routing information via sysctl'
+  cli: 'netstat -an'
+  tags: ['network']
+  conditions_match_any:
+  - 'tag:binaries:.*bin/netstat$'
+- description: 'collect arp information'
+  cli: 'cat /proc/net/arp'
+  tags: ['network']
+  saveas: '%h.arp.txt'
+- description: 'collect kernel network interface statistics'
+  cli: 'cat /proc/net/dev'
+  tags: ['network', 'test']
+  saveas: '%h.ifstats.txt'
+  derivatives:
+  - os:
+    - generic_linux
+    regex:
+    - pattern: '^\s*(?P<IF_NAME>\S+):'
+      flags: ['add_cli']
+    actions:
+    - description: 'collect network interface driver and hardware settings from <IF_NAME>'
+      cli:
+      - 'ethtool <IF_NAME>'
+      - 'ethtool --show-pause <IF_NAME>'
+      - 'ethtool --show-coalesce <IF_NAME>'
+      - 'ethtool --show-ring <IF_NAME>'
+      - 'ethtool --driver <IF_NAME>'
+      - 'ethtool --show-features <IF_NAME>'
+      - 'ethtool --statistics <IF_NAME>'
+      - 'ethtool --show-nfc <IF_NAME>'
+      - 'ethtool --show-ntuple <IF_NAME>'
+      - 'ethtool --show-eee <IF_NAME>'
+      - 'ethtool --show-priv-flags <IF_NAME>'
+      - 'ethtool --show-channels <IF_NAME>'
+      - 'ethtool --show-time-stamping <IF_NAME>'
+      - 'ethtool --show-permaddr <IF_NAME>'
+      - 'ethtool --module-info <IF_NAME>'
+      - 'ethtool --show-eee <IF_NAME>'
+      saveas: '%h.ethtool.<IF_NAME>.txt'
+      append: yes
+      required: ['IF_NAME']
+      conditions_match_all:
+      - 'tag:binaries:.*in/ethtool$'
+      allow_empty_response: no
+- description: 'collect TCP socket information'
+  cli: 'cat /proc/net/tcp'
+  tags: ['network']
+  saveas: '%h.tcp.sockets.txt'
+- description: 'collect UDP socket information'
+  cli: 'cat /proc/net/udp'
+  tags: ['network']
+  saveas: '%h.udp.sockets.txt'
+- description: 'collect Unix socket information'
+  cli: 'cat /proc/net/unix'
+  tags: ['network']
+  saveas: '%h.unix.sockets.txt'
+- description: 'collect SSH service configuration'
+  cli: 'cat /etc/ssh/sshd_config'
+  tags: ['network']
+  saveas: '%h.sshd.config.txt'
+  conditions_match_any:
+  - 'tag:conf:/etc/ssh/sshd_config$'
+- description: 'collect local hosts file'
+  cli: 'cat /etc/hosts'
+  tags: ['network', 'dns']
+  saveas: '%h.etc.hosts.txt'
+  conditions_match_any:
+  - 'tag:conf:/etc/hosts$'
+- description: 'collect DNS resolution configuration'
+  cli: 'cat /etc/resolv.conf'
+  tags: ['network', 'dns']
+  saveas: '%h.etc.resolv.txt'
+  conditions_match_any:
+  - 'tag:conf:/etc/resolv.conf$'
+- description: 'collect information about the order of the name resolution'
+  cli: 'cat /etc/nsswitch.conf'
+  tags: ['network', 'dns']
+  saveas: '%h.etc.nsswitch.txt'
+  conditions_match_any:
+  - 'tag:conf:/etc/nsswitch.conf$'
+- description: 'collect the status of Open vSwitch service'
+  cli: 'systemctl --no-pager --no-legend --plain -l -n 0 status openvswitch | sed ""'
+  tags: ['network']
+  saveas: '%h.service.openvswitch.txt'
+  conditions_match_any:
+  - 'tag:services:openvswitch.service'
+- description: 'collect Open vSwitch service configuration'
+  cli: 'cat /etc/default/openvswitch'
+  saveas: '%h.etc.openvswitch.conf.txt'
+  tags: ['network']
+  conditions_match_any:
+  - 'tag:conf:/etc/default/openvswitch$'
+- description: 'collect the status of Nuage Networks libnetwork network service'
+  cli: 'systemctl --no-pager --no-legend --plain -l -n 0 status nuage-libnetwork | sed ""'
+  tags: ['network', 'nuage']
+  saveas: '%h.service.nuage.libnetwork.txt'
+  conditions_match_any:
+  - 'tag:services:nuage.libnetwork.service'
+- description: 'collect Nuage Networks libnetwork network service configuration'
+  cli: 'cat /etc/default/libnetwork-nuage.yaml'
+  tags: ['network', 'nuage']
+  saveas: '%h.etc.nuage.libnetwork.conf.txt'
+  conditions_match_any:
+  - 'tag:conf:/etc/default/libnetwork-nuage.yaml$'
+- description: 'collect Nuage Networks VSP component configuration'
+  cli: 'cat /etc/nuage/config.cfg'
+  tags: ['network', 'nuage']
+  saveas: '%h.etc.nuage.conf.txt'
+  conditions_match_any:
+  - 'tag:conf:/etc/nuage/config.cfg$'
+- description: 'collect the status of Docker service'
+  cli: 'systemctl --no-pager --no-legend --plain -l -n 0 status docker | sed ""'
+  tags: ['docker']
+  saveas: '%h.service.docker.txt'
+  conditions_match_any:
+  - 'tag:services:docker.service'
+- description: 'collect information about docker networks'
+  cli: 'docker network ls'
+  tags: ['docker', 'network']
+  saveas: '%h.docker.networks.txt'
+  conditions_match_any:
+  - 'tag:services:docker.service'
+  derivatives:
+  - os:
+    - generic_linux
+    regex:
+    - pattern: '^\s*(?P<NETWORK_ID>[0-9a-z]\S+)\s+(?P<NETWORK_NAME>\S+)\s+(?P<NETWORK_DRIVER>\S+)'
+      flags: ['add_cli']
+    actions:
+    - description: 'collect the configuration of <NETWORK_NAME> docker network'
+      cli: 'docker network inspect <NETWORK_NAME>'
+      required: ['NETWORK_ID', 'NETWORK_NAME', 'NETWORK_DRIVER']
+      saveas: '%h.docker.network.<NETWORK_NAME>.config.json'
+      format: 'json'
+- description: 'collect information about docker images'
+  cli: 'docker images -a'
+  tags: ['docker']
+  saveas: '%h.docker.images.txt'
+  conditions_match_any:
+  - 'tag:services:docker.service'
+- description: 'collect information about docker containers'
+  cli: 'docker ps -a'
+  tags: ['docker', 'network']
+  saveas: '%h.docker.containers.txt'
+  conditions_match_any:
+  - 'tag:services:docker.service'
+  derivatives:
+  - os:
+    - generic_linux
+    regex:
+    - pattern: '^\s*(?P<CONTAINER_ID>[0-9a-z]\S+)\s*'
+      flags: ['add_cli']
+    actions:
+    - description: 'collect information about docker container with id <CONTAINER_ID>'
+      cli: 'docker inspect <CONTAINER_ID> | python -m json.tool'
+      required: ['CONTAINER_ID']
+      saveas: '%h.docker.container.<CONTAINER_ID>.config.json'
+      format: 'json'
+- description: 'collect information about desired network configuration'
+  cli: 'cat /etc/sysconfig/network'
+  tags: ['network']
+  saveas: '%h.network.sysconfig.txt'
+  conditions_match_any:
+  - 'tag:conf:/etc/sysconfig/network$'
+- description: 'collect the status of network service'
+  cli: 'systemctl --no-pager --no-legend --plain -l -n 0 status network | sed ""'
+  tags: ['network']
+  saveas: '%h.service.network.txt'
+  conditions_match_any:
+  - 'tag:services:network.service'
+- description: 'collect the list of network configuration scripts'
+  cli: 'grep -H -r "^DEVICE=[0-9a-z]" /etc/sysconfig/network-scripts/ | sed ""'
+  tags: ['network']
+  saveas: '%h.network.scripts.txt'
+  preserve: no
+  conditions_match_any:
+  - 'tag:conf:/etc/sysconfig/network-scripts/ifcfg'
+  derivatives:
+  - os:
+    - generic_linux
+    regex:
+    - pattern: '^\s*(?P<IF_NAME_SCRIPT>.*):DEVICE=(?P<IF_NAME>\S+)'
+      flags: ['add_cli']
+    actions:
+    - description: 'collect network configuration script for <IF_NAME> interface'
+      cli: 'cat <IF_NAME_SCRIPT>'
+      required: ['IF_NAME_SCRIPT', 'IF_NAME']
+      saveas: '%h.network.script.<IF_NAME>.txt'
+      format: 'txt'
+- description: 'collect information about desired iptables firewall configuration'
+  cli: 'cat /etc/sysconfig/iptables-config'
+  tags: ['firewall', 'security']
+  saveas: '%h.iptables.conf.txt'
+  conditions_match_any:
+  - 'tag:conf:/etc/sysconfig/iptables-config$'
+- description: 'collect information about iptables firewall table'
+  cli: 'iptables -L -t filter'
+  tags: ['firewall', 'security']
+  saveas: '%h.iptables.filter.txt'
+  conditions_match_any:
+  - 'tag:services:iptables.service'
+- description: 'collect information about iptables NAT table'
+  cli: 'iptables -L -t nat'
+  tags: ['firewall', 'security']
+  saveas: '%h.iptables.nat.txt'
+  conditions_match_any:
+  - 'tag:services:iptables.service'
+- description: 'collect information about iptables packet alteration table'
+  cli: 'iptables -L -t mangle'
+  tags: ['firewall', 'security']
+  saveas: '%h.iptables.mangle.txt'
+  conditions_match_any:
+  - 'tag:services:iptables.service'
+- description: 'collect information about iptables exempt packets table'
+  cli: 'iptables -L -t raw'
+  tags: ['firewall', 'security']
+  saveas: '%h.iptables.raw.txt'
+  conditions_match_any:
+  - 'tag:services:iptables.service'
+- description: 'collect information about iptables Mandatory Access Control (MAC) rules table'
+  cli: 'iptables -L -t security'
+  tags: ['firewall', 'security']
+  saveas: '%h.iptables.security.txt'
+  conditions_match_any:
+  - 'tag:services:iptables.service'
+
+- description: 'collect the status of CAPP-compliant (Controlled Access Protection Profiles) auditing service'
+  cli: 'systemctl --no-pager --no-legend --plain -l -n 0 status auditd | sed ""'
+  tags: ['security', 'audit']
+  saveas: '%h.service.auditd.txt'
+  conditions_match_any:
+  - 'tag:services:auditd.service'
+- description: 'collect information about running operating system audit rules'
+  cli: 'auditctl -l'
+  tags: ['security', 'audit']
+  saveas: '%h.auditd.rules.running.txt'
+  conditions_match_all_nolimit:
+  - 'tag:services:audit.service'
+  - 'tag:binaries:.*bin/auditctl$'
+- description: 'collect information about pre-configured operating system audit rules'
+  cli: 'cat /etc/audit/audit.rules'
+  tags: ['security', 'audit']
+  saveas: '%h.auditd.rules.conf.txt'
+  conditions_match_all_nolimit:
+  - 'tag:services:audit.service'
+  - 'tag:conf:/etc/audit/audit.rules$'
+- description: 'collect information about configuration of operating system auditing service'
+  cli: 'cat /etc/audit/auditd.conf'
+  tags: ['security', 'audit']
+  saveas: '%h.auditd.rules.conf.txt'
+  conditions_match_all_nolimit:
+  - 'tag:services:audit.service'
+  - 'tag:conf:/etc/audit/auditd.conf$'
+- description: 'collect the file listing related to security configuration of various PAM modules'
+  cli: 'find /etc/security/ -type f -name "*.conf"'
+  tags: ['network', 'test']
+  saveas: '%h.files.etc.security.txt'
+  preserve: no
+  derivatives:
+  - os:
+    - generic_linux
+    regex:
+    - pattern: '^\s*(?P<FILE_NAME>/etc/security.*)$'
+      flags: ['add_cli']
+    actions:
+    - description: 'collect information about security configuration of various PAM modules'
+      cli:
+      - 'grep -H -v -E "^\s*#|^\s*$" <FILE_NAME> | sed ""'
+      saveas: '%h.etc.security.conf.txt'
+      append: yes
+      required: ['FILE_NAME']
+      conditions_match_all:
+      - 'tag:users:privileges:(uid|gid|groups).*root'
+      allow_empty_response: yes

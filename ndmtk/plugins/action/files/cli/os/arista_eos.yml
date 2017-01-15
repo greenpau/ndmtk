@@ -1,0 +1,412 @@
+---
+#
+# ndmtk - Network Discovery and Management Toolkit
+# Copyright (C) 2016 Paul Greenberg @greenpau
+# See LICENSE.txt for licensing details
+#
+# File: plugins/action/files/cli/os/arista_eos.yml
+#
+ndmtk:
+- cli: 'show version'
+  tags: 'ref:version'
+- cli: 'show running-config'
+  tags: 'ref:configuration'
+  paging: 'terminal length 0'
+- cli: 'show ip bgp vrf all'
+  tags: ['routing', 'bgp']
+  conditions_match_any:
+  - '^router bgp '
+- cli: 'show ip bgp neighbors vrf all'
+  tags: ['routing', 'bgp']
+  conditions_match_any:
+  - '^router bgp '
+- cli: 'show ip bgp summary vrf all'
+  tags: ['routing', 'bgp']
+  conditions_match_any:
+  - '^router bgp '
+  derivatives:
+  - description: 'BGP neighbor details'
+    os:
+    - arista_eos
+    regex:
+    - pattern: 'BGP summary information for VRF (?P<VRF>\S+)'
+      flags: ['purge']
+    - pattern: '\s*(?P<IP_ADDRESS>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+\d\s+'
+      flags: ['add_cli']
+    actions:
+    - cli: 'show ip bgp neighbors <IP_ADDRESS> vrf <VRF>'
+      required: ['IP_ADDRESS', 'VRF']
+      format: 'txt'
+    - cli: 'show ip bgp neighbors <IP_ADDRESS> advertised-routes vrf <VRF>'
+      required: ['IP_ADDRESS', 'VRF']
+      format: 'txt'
+    - cli: 'show ip bgp neighbors <IP_ADDRESS> advertised-routes detail vrf <VRF>'
+      required: ['IP_ADDRESS', 'VRF']
+      format: 'txt'
+    - cli: 'show ip bgp neighbors <IP_ADDRESS> received-routes vrf <VRF>'
+      required: ['IP_ADDRESS', 'VRF']
+      format: 'txt'
+    - cli: 'show ip bgp neighbors <IP_ADDRESS> received-routes detail vrf <VRF>'
+      required: ['IP_ADDRESS', 'VRF']
+      format: 'txt'
+
+- description: 'Collects VRF information'
+  cli: 'show vrf'
+  tags: ['routing', 'vrf', 'test']
+  conditions_match_any:
+  - '^vrf '
+  - '^ip vrf '
+  derivatives:
+  - description: 'Collects details about existing VRFs'
+    os:
+    - arista_eos
+    regex:
+    - pattern: '^\s*(?P<VRF_NAME>\S+)\s+.*ipv4'
+      flags: ['add_cli']
+    actions:
+    - cli: 'show ip route vrf <VRF_NAME>'
+      required: ['VRF_NAME']
+      format: 'txt'
+    - cli: 'show ip route vrf <VRF_NAME> detail'
+      required: ['VRF_NAME']
+      format: 'txt'
+    - cli: 'show ip bgp detail vrf <VRF_NAME>'
+      allow_empty_response: yes
+      required: ['VRF_NAME']
+      format: 'txt'
+      conditions_match_any:
+      - '^router bgp '
+#  - description: 'Collects details about existing Route Distinguishers'
+#    os:
+#    - arista_eos
+#    regex:
+#    - pattern: '^\s*(?P<VRF_NAME>\S+)\s+(?P<VRF_RD>\d+:\d+)\s+'
+#      flags: ['add_cli']
+#    actions:
+#    - cli: 'show ip route vrf <VRF_NAME>'
+#      required: ['VRF_NAME', 'VRF_RD']
+#      format: 'txt'
+
+- description: 'Collects default routing context (VRF)'
+  cli: 'show routing-contex vrf'
+  tags: ['routing', 'test']
+  derivatives:
+  - description: 'Collects details about default VRF'
+    os:
+    - arista_eos
+    regex:
+    - pattern: '^Current VRF routing-context is (?P<VRF_NAME>\S+)'
+      flags: ['add_cli']
+    actions:
+    - cli: 'show ip route vrf <VRF_NAME>'
+      required: ['VRF_NAME']
+      format: 'txt'
+    - cli: 'show ip route vrf <VRF_NAME> detail'
+      required: ['VRF_NAME']
+      format: 'txt'
+    - cli: 'show ip bgp detail vrf <VRF_NAME>'
+      allow_empty_response: yes
+      required: ['VRF_NAME']
+      format: 'txt'
+      conditions_match_any:
+      - '^router bgp '
+- description: 'Collects routing table'
+  cli: 'show ip route vrf all'
+  tags: ['routing', 'test']
+- description: 'Collects routing table (detailed)'
+  cli: 'show ip route vrf all detail'
+  tags: ['routing', 'test']
+- description: 'Collects ARP table'
+  cli: 'show arp'
+  tags: ['routing']
+- description: 'Collects clock information'
+  cli: 'show clock'
+  tags: ['clock']
+- description: 'Collects system uptime'
+  cli: 'show uptime'
+- description: 'Collects NTP peer information'
+  cli: 'show ntp associations'
+  tags: ['ntp', 'clock']
+  conditions_match_any:
+  - '^ntp server'
+- description: 'Collects NTP service status'
+  cli: 'show ntp status'
+  tags: ['ntp', 'clock']
+  conditions_match_any:
+  - '^ntp server'
+
+- cli: 'show startup-config'
+  tags: ['backup']
+
+- description: 'Collects information about available ports'
+  cli: 'show interface'
+  tags: ['switching']
+- cli: 'show switch forwarding-mode'
+  tags: ['switching', 'mac']
+- cli: 'show mac address-table'
+  tags: ['switching', 'mac']
+- cli: 'show ip interface'
+  tags: ['routing']
+- cli: 'show ip access-list'
+  tags: ['acl']
+  conditions_match_any:
+  - '^ip access-list'
+- cli: 'show mac access-list'
+  tags: ['acl']
+  conditions_match_any:
+  - '^mac access-list'
+- cli: 'show ip prefix-list'
+  tags: ['routing']
+  conditions_match_any:
+  - '^ip prefix-list '
+- cli: 'show inventory'
+  tags: ['inventory']
+- cli: 'show ip igmp group'
+  tags: ['switching', 'multicast', 'igmp']
+  conditions_match_any:
+  - 'ip igmp'
+- cli: 'show ip igmp interface'
+  tags: ['switching', 'multicast', 'igmp']
+  conditions_match_any:
+  - 'ip igmp'
+- cli: 'show port-channel summary'
+  tags: ['switching', 'link-aggregation']
+  conditions_match_any:
+  - 'interface [Pp]ort-[Cc]hannel'
+- cli: 'show port-channel traffic'
+  tags: ['switching', 'link-aggregation']
+  conditions_match_any:
+  - 'interface [Pp]ort-[Cc]hannel'
+- cli: 'show port-channel limits'
+  tags: ['switching', 'link-aggregation']
+  conditions_match_any:
+  - 'interface [Pp]ort-[Cc]hannel'
+- cli: 'show port-channel detailed'
+  tags: ['switching', 'link-aggregation']
+  conditions_match_any:
+  - 'interface [Pp]ort-[Cc]hannel'
+- cli: 'show load-balance profile'
+  tags: ['switching']
+  conditions_match_any:
+  - 'load-balance profile'
+
+- description: 'Collects VLAN information'
+  cli: 'show vlan'
+  tags: ['switching', 'vlan']
+  conditions_match_any:
+  - '^vlan '
+  derivatives:
+  - description: 'Collects VLAN information for VLAN <VLAN_ID>'
+    os:
+    - arista_eos
+    regex:
+    - pattern: '^(?P<VLAN_ID>\d{1,4})\s+'
+      flags: ['add_cli']
+    actions:
+    - description: 'Collects information about trunk groups in VLAN <VLAN_ID>'
+      cli: 'show vlan <VLAN_ID> trunk group'
+      required: ['VLAN_ID']
+      format: 'txt'
+    - description: 'Collects information about configured ports in VLAN <VLAN_ID>'
+      cli: 'show vlan <VLAN_ID> configured-ports'
+      required: ['VLAN_ID']
+      format: 'txt'
+    - description: 'Collects information about active configured ports in VLAN <VLAN_ID>'
+      cli: 'show vlan <VLAN_ID> active-configuration'
+      required: ['VLAN_ID']
+      format: 'txt'
+- description: 'Collects information about VLAN allocation policy'
+  cli: 'show vlan internal allocation policy'
+  tags: ['switching', 'vlan']
+  conditions_match_any:
+  - '^vlan '
+- description: 'Collects information about internal VLAN usage'
+  cli: 'show vlan internal usage'
+  tags: ['switching', 'vlan']
+  conditions_match_any:
+  - '^vlan '
+
+- description: 'Collects information about existing etherchannels'
+  cli: 'show etherchannel all-ports detailed'
+  tags: ['switching', 'link-aggregation', 'test']
+  conditions_match_any:
+  - 'interface [Pp]ort-[Cc]hannel'
+
+- cli: 'show interfaces trunk'
+  tags: ['switching', 'vlan']
+  conditions_match_any:
+  - 'switchport.*trunk'
+
+- cli: 'show spanning-tree detail'
+  tags: ['switching', 'vlan']
+  conditions_match_any:
+  - '^spanning-tree vlan '
+
+- description: 'Collects information local users'
+  cli: 'show user-account'
+  tags: ['aaa']
+  conditions_match_any:
+  - '^username '
+
+- description: 'Collects information connected users'
+  cli: 'show users'
+  tags: ['aaa']
+  conditions_match_any:
+  - '^username '
+
+- cli: 'show lacp internal'
+  tags: ['switching', 'link-aggregation']
+  conditions_match_any:
+  - 'interface [Pp]ort-[Cc]hannel'
+- cli: 'show lacp neighbor'
+  tags: ['switching', 'link-aggregation']
+  conditions_match_any:
+  - 'interface [Pp]ort-[Cc]hannel'
+- cli: 'show lacp counters'
+  tags: ['switching', 'link-aggregation']
+  conditions_match_any:
+  - 'interface [Pp]ort-[Cc]hannel'
+- cli: 'show lacp aggregates'
+  tags: ['switching', 'link-aggregation']
+  conditions_match_any:
+  - 'interface [Pp]ort-[Cc]hannel'
+- cli: 'show lldp'
+  tags: ['lldp']
+- cli: 'show lldp local-info'
+  tags: ['lldp']
+- cli: 'show lldp neighbors'
+  tags: ['lldp']
+- cli: 'show lldp traffic'
+  tags: ['lldp']
+- cli: 'show mlag'
+  tags: ['switching', 'link-aggregation']
+  conditions_match_any:
+  - '^mlag'
+- cli: 'show mlag interfaces members'
+  tags: ['switching', 'link-aggregation']
+  conditions_match_any:
+  - '^mlag'
+- cli: 'show mlag interfaces'
+  tags: ['switching', 'link-aggregation']
+  conditions_match_any:
+  - '^mlag'
+- cli: 'show ip community-list'
+  tags: ['routing', 'bgp']
+  conditions_match_all:
+  - '^router bgp '
+  - '^ip community-list'
+- cli: 'show route-map'
+  tags: ['route-map']
+  conditions_match_any:
+  - '^route-map '
+- cli: 'show vrrp all'
+  tags: ['vrrp']
+  conditions_match_any:
+  - 'vrrp \d+ ip'
+
+- description: 'Collects virtual router (VRRP) information'
+  cli: 'show ip virtual-router vrf all'
+  tags: ['vrrp', 'hsrp']
+  conditions_match_any:
+  - 'ip virtual-router address'
+
+- cli: 'show ip ospf neighbor vrf all'
+  tags: ['routing', 'ospf']
+  conditions_match_any:
+  - '^router ospf '
+  derivatives:
+  - description: 'OSPF neighbor details'
+    os:
+    - arista_eos
+    regex:
+    - pattern: '\s*(?P<IP_ADDRESS>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+(?P<VRF>\S+)'
+      flags: ['add_cli']
+    actions:
+    - cli: 'show ip ospf neighbor <IP_ADDRESS> vrf <VRF>'
+      required: ['IP_ADDRESS', 'VRF']
+      format: 'txt'
+- cli: 'show ip ospf vrf all'
+  tags: ['routing', 'ospf']
+  conditions_match_any:
+  - '^router ospf '
+- cli: 'show ip ospf database database-summary vrf all'
+  tags: ['routing', 'ospf']
+  conditions_match_any:
+  - '^router ospf '
+- cli: 'show ip ospf database vrf all'
+  tags: ['routing', 'ospf']
+  conditions_match_any:
+  - '^router ospf '
+- cli: 'show ip ospf database detail vrf all'
+  tags: ['routing', 'ospf']
+  conditions_match_any:
+  - '^router ospf '
+- cli: 'show ip ospf interface vrf all'
+  tags: ['routing', 'ospf']
+  conditions_match_any:
+  - '^router ospf '
+- cli: 'show ip ospf neighbor summary vrf all'
+  tags: ['routing', 'ospf']
+  conditions_match_any:
+  - '^router ospf '
+- cli: 'show ip ospf request-list vrf all'
+  tags: ['routing', 'ospf']
+  conditions_match_any:
+  - '^router ospf '
+- cli: 'show ip ospf retransmission-list vrf all'
+  tags: ['routing', 'ospf']
+  conditions_match_any:
+  - '^router ospf '
+
+
+- cli: 'show ip mroute vrf all'
+  tags: ['routing', 'multicast']
+  conditions_match_any:
+  - '^ip multicast-routing'
+- cli: 'show ip mroute count vrf all'
+  tags: ['routing', 'multicast']
+  conditions_match_any:
+  - '^ip multicast-routing'
+- cli: 'show ip mroute detail vrf all'
+  tags: ['routing', 'multicast']
+  conditions_match_any:
+  - '^ip multicast-routing'
+- cli: 'show ip mfib software detail'
+  tags: ['routing', 'multicast']
+  conditions_match_any:
+  - '^ip multicast-routing'
+
+- cli: 'show xmpp status'
+  tags: ['management', 'xmpp']
+  conditions_match_any:
+  - '^management xmpp'
+- cli: show xmpp neighbors
+  tags: ['management', 'xmpp']
+  conditions_match_any:
+  - '^management xmpp'
+- cli: show xmpp switch-group
+  tags: ['management', 'xmpp']
+  conditions_match_any:
+  - '^management xmpp'
+
+- cli: 'show management api http-commands'
+  tags: ['management', 'api']
+  conditions_match_any:
+  - '^management api http-commands'
+
+- cli: 'show snmp'
+  tags: ['management', 'snmp']
+  conditions_match_any:
+  - '^snmp-server'
+- cli: 'show snmp community'
+  tags: ['management', 'snmp']
+  conditions_match_any:
+  - '^snmp-server community'
+- cli: 'show snmp host'
+  tags: ['management', 'snmp']
+  conditions_match_any:
+  - '^snmp-server host'
+
+- cli: 'show logging | head -250'
+  tags: ['management', 'logging']
+  saveas: '%h.show.logging.txt'

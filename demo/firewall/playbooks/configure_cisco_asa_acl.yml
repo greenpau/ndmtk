@@ -1,0 +1,11 @@
+---
+- hosts:
+  - ny-fw01
+  gather_facts: no
+  tasks:
+  - name: configure firewall acl
+    action: ndmtk
+            no_host_key_check=yes
+            disable_defaults=yes
+            on_error=continue
+            cliset_spec=files/ndmtk/spec/{{ inventory_hostname_short }}.acl.yml

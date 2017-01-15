@@ -1,0 +1,21 @@
+---
+#
+# ndmtk - Network Discovery and Management Toolkit
+# Copyright (C) 2016 Paul Greenberg @greenpau
+# See LICENSE.txt for licensing details
+#
+# File: plugins/action/files/cli/os/cisco_nxos_cmp.yml
+#
+
+ndmtk:
+- cli: show cdp neighbors
+- cli: show cdp neighbors detail
+- cli: show clock
+- cli: show cp state
+- cli: show system resources
+- cli: show version
+  tags: version
+- cli: show running-config
+  tags: configuration
+- cli: show interface
+- cli: show hardware

@@ -1,0 +1,11 @@
+---
+exceptions:
+- description: 'Prevent the execution of XXXX command on all hosts'
+  host: '.*'
+  cli: 'XXXX'
+- description: 'Prevent the execution of YYYY command on all hosts'
+  host: '.*'
+  cli: 'YYYY'
+- description: 'Prevent the execution of "show ssh session" command on all hosts'
+  host: 'ny-fw03'
+  cli: 'show ssh session'

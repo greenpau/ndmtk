@@ -1,0 +1,33 @@
+---
+#
+# ndmtk - Network Discovery and Management Toolkit
+# Copyright (C) 2016 Paul Greenberg @greenpau
+# See LICENSE.txt for licensing details
+#
+# File: plugins/action/files/cli/os/junos_qfx.yml
+#
+
+ndmtk:
+- cli: show configuration | display set
+  tags: configuration
+  paging: 'set cli screen-length 0'
+- cli: show version
+  tags: version
+- cli: show route
+- cli: show system uptime
+- cli: show arp no-resolve
+- cli: show chassis hardware detail
+- cli: show ntp associations
+- cli: show ntp status
+- cli: show multicast route
+  capability: multicast
+- cli: show interfaces statistics
+- cli: show vlans
+- cli: show ethernet-switching table
+  capability: switch
+- cli: show igmp group
+  capability: multicast
+- cli: show igmp interface
+  capability: multicast
+- cli: show bgp summary
+  capability: router

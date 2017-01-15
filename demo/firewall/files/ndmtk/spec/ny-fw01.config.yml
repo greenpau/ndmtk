@@ -1,0 +1,6 @@
+---
+ndmtk:
+- cli: |
+    show running-config
+  saveas: '%U.%h.config'
+  mode: analytics

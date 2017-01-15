@@ -1,0 +1,343 @@
+---
+#
+# ndmtk - Network Discovery and Management Toolkit
+# Copyright (C) 2016 Paul Greenberg @greenpau
+# See LICENSE.txt for licensing details
+#
+# File: plugins/action/files/cli/os/cisco_nxos.yml
+#
+
+ndmtk:
+- cli: show running-config
+  tags: configuration
+  paging: 'terminal length 0'
+- cli: show version
+  tags: version
+- cli: show ip bgp summary vrf all
+  tags: ['routing', 'bgp']
+  conditions_match_any:
+  - '^router bgp'
+  derivatives:
+  - description: 'BGP neighbor details'
+    os:
+    - cisco_nxos
+    regex:
+    - pattern: 'BGP summary information for VRF (?P<VRF>\S+), address family'
+      flags: ['purge']
+    - pattern: '\s*(?P<IP_ADDRESS>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+\d\s+'
+      flags: ['add_cli']
+    actions:
+    - cli: 'show ip bgp neighbors <IP_ADDRESS> vrf <VRF>'
+      required: ['IP_ADDRESS', 'VRF']
+      format: 'txt'
+    - cli: 'show ip bgp neighbors <IP_ADDRESS> advertised-routes vrf <VRF>'
+      required: ['IP_ADDRESS', 'VRF']
+      format: 'txt'
+    - cli: 'show ip bgp neighbors <IP_ADDRESS> received-routes vrf <VRF>'
+      required: ['IP_ADDRESS', 'VRF']
+      format: 'txt'
+- cli: 'show ip arp vrf all'
+- cli: 'show clock'
+- cli: 'show ip route vrf all'
+- cli: 'show ntp peer-status'
+  conditions_match_any:
+  - '^ntp server'
+  - '^ntp peer'
+- cli: show ntp status
+  conditions_match_any:
+  - '^ntp server'
+  - '^ntp peer'
+- cli: show ip mroute vrf all
+  conditions_match_any:
+  - 'ip pim'
+- cli: show ip mroute summary count vrf all
+  conditions_match_any:
+  - 'ip pim'
+- cli: show ip igmp snooping groups detail
+  conditions_match_any:
+  - 'ip igmp'
+- cli: show ip pim rp vrf all
+  conditions_match_any:
+  - 'ip pim'
+- cli: show ip pim neighbor vrf all
+  conditions_match_any:
+  - 'ip pim'
+- cli: show ip pim interface vrf all
+  conditions_match_any:
+  - 'ip igmp'
+- cli: show ip pim group-range vrf all
+  conditions_match_any:
+  - 'ip pim'
+- cli: show startup-config
+- cli: show interface
+- cli: show vlan
+  conditions_match_any:
+  - '^vlan'
+- cli: show port-channel database
+  conditions_match_any:
+  - 'interface [Pp]ort-[Cc]hannel'
+- cli: show port-channel traffic
+  conditions_match_any:
+  - 'interface [Pp]ort-[Cc]hannel'
+- cli: show mac address-table
+  conditions_match_any:
+  - '^vlan'
+- cli: show ip interface vrf all
+- cli: show route-map
+  conditions_match_any:
+  - '^route-map'
+- cli: show ip access-list
+  conditions_match_any:
+  - 'ip access-list'
+- cli: show inventory
+- cli: show module
+- cli: show ip igmp group vrf all
+  conditions_match_any:
+  - 'ip igmp'
+- cli: show ip igmp interface vrf all
+  conditions_match_any:
+  - 'ip igmp'
+
+- description: 'Collect VRF status'
+  cli: show vrf all
+  conditions_match_any:
+  - 'ip vrf'
+  - 'vrf context'
+  tags: ['vxlan', 'vrf', 'test']
+  derivatives:
+  - os:
+    - cisco_nxos
+    regex:
+    - pattern: '^(?P<VRF_NAME>\S+)\s+(\d+)\s+'
+      flags: ['add_cli']
+    actions:
+    - description: 'Collect detailed information about VRF <VRF_NAME>'
+      cli:
+      - 'show vrf <VRF_NAME> detail'
+      required: ['VRF_NAME']
+      allow_empty_response: no
+
+- description: 'Collect NVE peer status.'
+  cli: 'show nve peers'
+  tags: ['vxlan', 'test']
+  conditions_match_any:
+  - '^interface nve'
+  derivatives:
+  - os:
+    - cisco_nxos
+    regex:
+    - pattern: '^(?P<NVE_INTERFACE>\S+)\s+(?P<NVE_PEER_IP>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+'
+      flags: ['add_cli']
+    actions:
+    - description: 'Collect detailed information about NVE peer <NVE_PEER_IP>'
+      cli:
+      - 'show nve peers peer-ip <NVE_PEER_IP> detail'
+      required: ['NVE_PEER_IP', 'NVE_INTERFACE']
+      allow_empty_response: no
+    - description: 'Collect network usage/counters information for NVE peer <NVE_PEER_IP> on interface <NVE_INTERFACE>'
+      cli:
+      - 'show nve peers <NVE_PEER_IP> interface <NVE_INTERFACE> counters'
+      required: ['NVE_PEER_IP', 'NVE_INTERFACE']
+      allow_empty_response: no
+
+- description: 'Collect the binding information between VXLAN Peer IP and VNI'
+  cli: 'show nve peers control-plane-vni'
+  tags: ['vxlan', 'test']
+  conditions_match_any:
+  - '^interface nve'
+  derivatives:
+  - os:
+    - cisco_nxos
+    regex:
+    - pattern: '^(?P<NVE_PEER_IP>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+(?P<VNI_ID>\d+)\s+'
+      flags: ['add_cli']
+    actions:
+    - description: 'Collect detailed information about control plane for VNI <VNI_ID>'
+      cli:
+      - 'show nve peers control-plane-vni vni <VNI_ID>'
+      required: ['VNI_ID']
+      allow_empty_response: no
+      no_duplicates: yes
+
+- description: 'Collect NVE interface status.'
+  cli: 'show nve interface'
+  tags: ['vxlan', 'test']
+  conditions_match_any:
+  - '^interface nve'
+  derivatives:
+  - os:
+    - cisco_nxos
+    regex:
+    - pattern: '^Interface:\s(?P<NVE_INTERFACE>\S+), State:'
+      flags: ['add_cli']
+    actions:
+    - description: 'Collect detailed information about NVE interface <NVE_INTERFACE>'
+      cli:
+      - 'show nve interface <NVE_INTERFACE> detail'
+      required: ['NVE_INTERFACE']
+      allow_empty_response: no
+
+- description: 'Collect ARP Suppression Cache'
+  cli: 'show ip arp suppression-cache detail'
+  tags: ['vxlan']
+  conditions_match_all:
+  - '.*l2vpn evpn'
+  - '^router bgp '
+
+- description: 'Collect VXLAN VNI status.'
+  cli: 'show nve vni'
+  tags: ['vxlan', 'test']
+  conditions_match_any:
+  - '^interface nve'
+  derivatives:
+  - os:
+    - cisco_nxos
+    regex:
+    - pattern: '^\s*(?P<VNI_INTERFACE>\S+)\s+(?P<VNI_ID>\S+)\s+(?P<VNI_MCAST_GROUP>\S+)\s+(?P<VNI_STATUS>\S+)\s+(?P<VNI_MODE>CP|UC|DP|SA)\s+(?P<VNI_TYPE>\[\S+\])'
+      flags: ['add_cli']
+    actions:
+    - description: 'Collect detailed VXLAN VNI information for VNI <VNI_ID>'
+      cli:
+      - 'show nve vni <VNI_ID> detail'
+      - 'show nve vni <VNI_ID> counters'
+      required: ['VNI_ID']
+      allow_empty_response: no
+- description: 'Displays the mapping of VNI to ingress-replication peer list and uptime for each peer'
+  cli: 'show nve vni ingress-replication'
+  tags: ['vxlan']
+  conditions_match_any:
+  - '^interface nve'
+  allow_empty_response: yes
+- description: 'Displays VXLAN parameters, such as VXLAN destination or UDP port.'
+  cli: 'show nve vxlan-params'
+  tags: ['vxlan']
+  conditions_match_any:
+  - '^interface nve'
+- description: 'Displays VXLAN interface status.'
+  cli: 'show vxlan interface'
+  tags: ['vxlan']
+  conditions_match_all:
+  - '.*l2vpn evpn'
+  - '^router bgp '
+- description: 'Collects BGP routing table information for the L2VPN EVPN address family'
+  cli: 'show bgp l2vpn evpn summary'
+  tags: ['vxlan']
+  conditions_match_all:
+  - '.*l2vpn evpn'
+  - '^router bgp '
+- description: 'Collects BGP routing table information for Layer-3 VNIs'
+  cli: 'show bgp l2vpn evpn'
+  tags: ['vxlan']
+  conditions_match_any:
+  - '^router bgp'
+- description: 'Collects MAC addresses of end hosts across all BGP EVPN instances (EVIs)'
+  cli: 'show l2route evpn mac all'
+  tags: ['vxlan']
+  conditions_match_all:
+  - '.*l2vpn evpn'
+  - '^router bgp '
+- description: 'Collects MAC-to-IP address binding for all attached and remote end hosts (learned through the BGP EVPN control plane)'
+  cli: 'show l2route evpn mac-ip all'
+  tags: ['vxlan']
+  conditions_match_all:
+  - '.*l2vpn evpn'
+  - '^router bgp '
+- description: 'Displays related VXLAN tech-support information.'
+  cli: 'show tech-support vxlan'
+  tags: ['vxlan', 'tech-support']
+  conditions_match_all:
+  - '.*l2vpn evpn'
+  - '^router bgp '
+- description: 'Displays related VXLAN tech-support information.'
+  cli: 'show tech-support vxlan platform'
+  tags: ['vxlan', 'tech-support']
+  conditions_match_all:
+  - '.*l2vpn evpn'
+  - '^router bgp '
+- description: 'Displays NVE logging level'
+  cli: 'show logging level nve'
+  tags: ['vxlan']
+  conditions_match_any:
+  - '^interface nve'
+- description: 'Displays related NVE tech-support information.'
+  cli: 'show tech-support nve'
+  tags: ['vxlan', 'tech-support']
+  conditions_match_any:
+  - '^interface nve'
+- description: 'Collects internal system ACL TCAM table information'
+  cli: 'show system internal access-list globals'
+  tags: 'internals'
+- description: 'Collects internal system capabilities'
+  cli: 'show system internal capability'
+  tags: 'internals'
+- description: 'Collects internal routing table'
+  cli: 'show system internal forwarding route'
+  tags: 'internals'
+- description: 'Collect internal forwaring adjacency'
+  cli: 'show system internal forwarding vrf all adjacency'
+  tags: 'internals'
+  conditions_match_any:
+  - '^vrf context (?!([Mm]anage|[Mm]g[mn]t))'
+
+- description: 'Collects LLDP neighbor information'
+  cli: 'show lldp neighbors detail'
+  tags: 'lldp'
+  allow_empty_response: yes
+  conditions_match_any:
+  - '^feature lldp'
+- description: 'Collects LLDP service status'
+  cli: 'show system internal lldp info'
+  tags: 'lldp'
+  conditions_match_any:
+  - '^feature lldp'
+- description: 'Collects CDP neighbor information'
+  cli: 'show cdp neighbors detail'
+  tags: 'cdp'
+- description: 'Collects CDP service status'
+  cli: 'show cdp internal global-info'
+  tags: 'cdp'
+- description: 'Collects CDP configuration on per interface basis'
+  cli: 'show cdp all'
+  tags: 'cdp'
+
+- description: 'Collects IPv4 FIB adjacency information'
+  cli: 'show forwarding ipv4 adjacency platform'
+  tags: ['fib']
+- description: 'Collects IPv4 FIB routing table'
+  cli: 'show forwarding ipv4 route vrf all'
+  tags: ['fib']
+- description: 'Collects IPv4 FIB interface information'
+  cli: 'show forwarding interfaces'
+  tags: ['fib']
+
+# TODO: derivative commands per module
+# TODO: detect when to perform checks for fex interfaces
+- description: 'Collects the status of consistency checks for L2'
+  cli: 'show consistency-checker l2 module 1'
+  tags: ['fib']
+- description: 'Collects the status of consistency checks for L3'
+  cli: 'show consistency-checker l3 module 1'
+  tags: ['fib']
+- description: 'Collects the status of consistency checks for link state'
+  cli: 'show consistency-checker link-state module 1'
+  tags: ['fib']
+
+# TODO: dynamic checks for VLANs
+# and port channels: show consistency-checker membership port-channels interface port-channel
+# show consistency-checker stp-state vlan 1
+- description: 'Collects the status of consistency checks for VLAN membership'
+  cli: 'show consistency-checker membership vlan 1'
+  tags: ['fib']
+
+- description: 'Collects the status of consistency checks for CoPP'
+  cli: 'show consistency-checker copp'
+  tags: ['fib']
+  conditions_precedent_all:
+  - 'os_class eq cisco_nxos'
+  - 'os_version_major ge 7'
+
+- description: 'Collects internal NVE counters for all peers'
+  cli: 'show forwarding internal nve counters peer all'
+  tags: ['fib', 'vxlan']
+  conditions_match_any:
+  - '^interface nve'

@@ -1,0 +1,7 @@
+---
+- hosts:
+  - test
+  gather_facts: no
+  tasks:
+  - name: collect the output of all relevant operating system commands
+    action: ndmtk output="/tmp/ndmtk-%Y%m%d" no_host_key_check=yes on_error=continue

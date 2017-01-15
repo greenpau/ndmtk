@@ -1,0 +1,136 @@
+---
+#
+# ndmtk - Network Discovery and Management Toolkit
+# Copyright (C) 2016 Paul Greenberg @greenpau
+# See LICENSE.txt for licensing details
+#
+# File: plugins/action/files/cli/os/nuage_timos.yml
+#
+
+ndmtk:
+- description: 'collects detailed version information'
+  cli: 'show system information'
+  tags: ['ref:version']
+- description: 'Collect running configuration'
+  cli: 'admin display-config'
+  tags: ['ref:conf']
+- description: 'Collect running configuration (extensive)'
+  cli: 'admin display-config detail'
+
+
+
+- description: 'Collects chassis information'
+  cli: 'show chassis'
+  tags: ['inventory']
+- description: 'Collects BOF information'
+  cli: 'show bof'
+
+- description: 'Collects cflowd service status'
+  cli: 'show cflowd status'
+- description: 'Collects cflowd interfaces'
+  cli: 'show cflowd interface'
+- description: 'Collects cflowd collector detail'
+  cli: 'show cflowd collector'
+
+
+- description: 'Collects linecard information'
+  cli: 'show card'
+  tags: ['inventory']
+- description: 'Collects Multichassis interconnect LAG information'
+  cli: 'show lag detail'
+- description: 'Collects adapter card information and statistics'
+  cli: 'show mda'
+- description: 'TBD'
+  cli: 'show mirror'
+
+
+- description: 'Collect SNMP counters'
+  cli: 'show snmp counters'
+  tags: ['snmp']
+- description: 'Collect SNMP communities'
+  cli: 'show system security communities'
+  tags: ['snmp']
+- description: 'Collect security access groups for SNMP and CLI access'
+  cli: 'show system security access-group'
+  tags: ['snmp', 'acl']
+
+- description: 'Collect LLDP service status'
+  cli: 'show system lldp'
+  tags: ['lldp']
+- description: 'Collect LLDP neighbor information'
+  cli: 'show system lldp neighbor'
+  tags: ['lldp']
+
+
+- description: 'Collect NTP service status'
+  cli: 'show system ntp all detail'
+  tags: ['ntp', 'clock']
+- description: 'Collect SNTP service status'
+  cli: 'show system sntp'
+  tags: ['ntp', 'clock']
+- description: 'Collect date and time information'
+  cli: 'show system time'
+  tags: ['clock']
+- description: 'Collect date and time information (short)'
+  cli: 'clock'
+  tags: ['clock']
+
+
+- description: 'Collect OAM service status'
+  cli: 'show test-oam oam-config-summary'
+  tags: ['oam']
+- description: 'Collect OAM statistics for various tests'
+  cli: 'show test-oam oam-perf detail'
+  tags: ['oam']
+
+
+- description: 'Collects ARP table'
+  cli: 'show router arp'
+  tags: ['arp']
+
+
+- description: 'Collect the status of routing processes'
+  cli: 'show router status'
+  tags: ['routing']
+
+- description: 'Collects the status of BGP process'
+  cli: 'show router bgp summary all'
+  tags: ['bgp', 'test']
+  derivatives:
+  - os:
+    - nuage_timos
+    regex:
+    - pattern: '-----------------'
+      flags: ['reset']
+    - pattern: '^BGP Summary'
+      flags: ['reset']
+    - pattern: '^(?P<BGP_PEER_IP>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s*$'
+      flags: ['add_cli']
+    actions:
+    - description: 'Collect detailed information about BGP neighbor <BGP_PEER_IP>'
+      cli:
+      - 'show router bgp neighbor <BGP_PEER_IP> detail'
+      required: ['BGP_PEER_IP']
+      allow_empty_response: no
+    - description: 'Collect detailed information about <BGP_PEER_FAMILY> routes received from BGP neighbor <BGP_PEER_IP>'
+      cli:
+      - 'show router bgp neighbor <BGP_PEER_IP> <BGP_PEER_FAMILY> received-routes'
+      required: ['BGP_PEER_IP', 'BGP_PEER_FAMILY']
+      allow_empty_response: no
+    - description: 'Collect detailed information about <BGP_PEER_FAMILY> routes advertised to BGP neighbor <BGP_PEER_IP>'
+      cli:
+      - 'show router bgp neighbor <BGP_PEER_IP> <BGP_PEER_FAMILY> advertised-routes'
+      required: ['BGP_PEER_IP', 'BGP_PEER_FAMILY']
+      allow_empty_response: no
+
+- description: 'Collects BGP EVPN routing table MAC address entries'
+  cli: 'show router bgp routes evpn bgp-mac'
+  tags: ['bgp']
+
+- description: 'Collects BGP IPv4 routing table'
+  cli: 'show router bgp routes '
+  tags: ['bgp']
+
+- description: 'Collects BGP IPv4 routing table (detailed)'
+  cli: 'show router bgp routes ipv4 detail'
+  tags: ['bgp']

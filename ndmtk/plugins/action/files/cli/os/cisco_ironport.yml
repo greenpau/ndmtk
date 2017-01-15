@@ -1,0 +1,17 @@
+---
+#
+# ndmtk - Network Discovery and Management Toolkit
+# Copyright (C) 2016 Paul Greenberg @greenpau
+# See LICENSE.txt for licensing details
+#
+# File: plugins/action/files/cli/os/cisco_ironport.yml
+#
+ndmtk:
+- cli: showconfig
+  tags: configuration
+  paging: 'terminal pager 0'
+  format: xml
+- cli: version
+  tags: version
+- cli: status detail
+- cli: arp
