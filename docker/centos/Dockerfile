@@ -1,15 +1,11 @@
-FROM alpine:latest
+FROM centos:latest
 MAINTAINER Paul Greenberg @greenpau
 
-RUN apk update && apk add python curl && \
-    mkdir -p /usr/local/src/pip && cd /usr/local/src/pip && \
-    curl -s https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python get-pip.py && \
-    pip install --upgrade pip
+RUN yum -y update && yum -y install curl git gcc vim make python-devel libffi-devel openssl-devel && \
+    curl -s https://bootstrap.pypa.io/get-pip.py -o get-pip.py && python get-pip.py
 
-RUN apk update && apk add expect vim openssh-client build-base python-dev libffi-dev openssl-dev && \
-    pip install ansible==2.2.0.0 && \
-    apk del build-base python-dev libffi-dev openssl-dev
+RUN pip install --upgrade pip
+RUN pip install ansible==2.2.0.0
 
 WORKDIR /etc/ansible
 
@@ -26,4 +22,4 @@ COPY demo/firewall/files/ndmtk/exceptions.yml /etc/ansible/files/ndmtk/
 COPY dist/ndmtk-0.1.1.tar.gz /usr/local/src/
 RUN  pip install /usr/local/src/ndmtk-0.1.1.tar.gz
 
-ENTRYPOINT ["/bin/sh"]
+ENTRYPOINT ["/bin/bash"]

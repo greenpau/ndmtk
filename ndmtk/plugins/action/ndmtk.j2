@@ -317,7 +317,7 @@ log_commit;
 set loop_counter 0;
 while 1 {
     incr loop_counter;
-    if { $loop_counter > 20 } {
+    if { $loop_counter > 250 } {
         send_status "connected:no";
         exit $ERROR_CONNECTION_TIMEOUT;
     }

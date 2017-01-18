@@ -1,108 +1,201 @@
-from setuptools import setup;
+#
+# ndmtk - Network Discovery and Management Toolkit
+# Copyright (C) 2016 Paul Greenberg @greenpau
+# See LICENSE.txt for licensing details
+#
+# File: setup.py
+#
+
+from __future__ import print_function;
+
+try:
+    from setuptools import setup;
+except ImportError:
+    from ez_setup import use_setuptools;
+    use_setuptools();
+
 from setuptools.command.install import install;
+from setuptools.command.sdist import sdist;
+from setuptools.command.test import test;
+from setuptools.command.develop import develop;
+from setuptools import setup;
 from codecs import open;
-from os import path;
+import traceback;
 import unittest;
 import os;
 import sys;
 import re;
 import stat;
 
+import unittest;
+
 pkg_name = 'ndmtk';
-pkg_ver = '0.1';
+pkg_ver = '0.1.1';
+
+cmdclass = {};
 
 def _load_test_suite():
     test_loader = unittest.TestLoader();
-    test_suite = test_loader.discover(path.join(pkg_dir, pkg_name, 'tests'), pattern='test_*.py');
+    test_suite = test_loader.discover(os.path.join(pkg_dir, pkg_name, 'tests'), pattern='test_*.py');
     return test_suite;
 
-class InstallAddons(install):
+def pre_build_toolkit():
+    for ts in _load_test_suite():
+        tsr=unittest.TextTestRunner();
+        tr = tsr.run(ts);
+        if len(tr.failures) > 0:
+            for tf in tr.failures:
+                print('[ERROR] ' + str(tf[1]));
+                return [];
+    print("[INFO] checking whether 'ansible' python package is installed ...");
+    ansible_dirs = _find_py_package('ansible');
+    if len(ansible_dirs) == 0:
+        print("[ERROR] 'ansible' python package was not found");
+        return [];
+    print("[INFO] the path to 'ansible' python package is: " + str(ansible_dirs));
+    for ansible_dir in ansible_dirs:
+	for suffix in ['.py', '.pyc']:
+	    for plugin_type in ['plugins/action', 'plugins/callback']:
+	        plugin_file = os.path.join(ansible_dir, plugin_type , pkg_name + suffix);
+		try:
+		    os.unlink(plugin_file);
+                except:
+                    pass;
+                try:
+                    os.remove(plugin_file);
+                except:
+                    pass;
+                if os.path.exists(plugin_file):
+                    print("[ERROR] 'ansible' python package contains traces '" + pkg_name + "' package ("+ plugin_file +"), failed to delete, aborting!");
+                else:
+		    print("[INFO] 'ansible' python package contains traces '" + pkg_name + "' package ("+ plugin_file +"), deleted!");
+    return ansible_dirs;
+
+def _find_utility(name):
+    x = any(os.access(os.path.join(path, name), os.X_OK) for path in os.environ["PATH"].split(os.pathsep));
+    return x;
+
+def _find_py_package(name):
+    pkg_dirs = [];
+    for path in sys.path:
+        if not re.search('site-packages$', path):
+            continue;
+        if not os.path.exists(path):
+            continue;
+        if not os.path.isdir(path):
+            continue
+        target = os.path.join(path, name);
+        if not os.path.exists(target):
+            continue;
+        if not os.path.isdir(target):
+            continue;
+        if target not in pkg_dirs:
+            pkg_dirs.append(target);
+    return pkg_dirs;
+
+def _post_build_toolkit(ansible_dirs, plugin_dir=None):
+    if plugin_dir is None:
+        plugin_dirs = _find_py_package(pkg_name);
+	if len(plugin_dirs) > 0:
+	    print("[INFO] the path to '" + pkg_name + "' python package is: " + str(plugin_dirs));
+            for d in plugin_dirs:
+                if re.search('bdist', d) or re.search('build', d):
+                    continue;
+                plugin_dir = d;
+                break;
+    if plugin_dir is None:
+        print("[ERROR] failed to find '" + pkg_name + "' python package, aborting!");
+        return;
+    if re.search('bdist', plugin_dir) or re.search('build', plugin_dir):
+        return;
+    if re.search('site-packages.?$', plugin_dir):
+        plugin_dir += pkg_name;
+    print("[INFO] the path to '" + pkg_name + "' python package is: " + str(plugin_dir));
     '''
-    Creates custom symlink to ansible site-packages directory
+    Create a symlink, i.e. `ln -s TARGET LINK_NAME`
     '''
+    _egg_files = [];
+    for ansible_dir in ansible_dirs:
+        for i in ['action', 'callback']:
+            symlink_target = os.path.join(plugin_dir, 'plugins/' + i + '/ndmtk.py');
+            symlink_name = os.path.join(ansible_dir, 'plugins/' + i + '/ndmtk.py');
+	    try:
+                os.symlink(symlink_target, symlink_name);
+                os.chmod(symlink_name, stat.S_IRUSR | stat.S_IWUSR);
+		_egg_files.append(symlink_name);
+                _egg_files.append(symlink_name + 'c');
+                print("[INFO] created symlink '" + symlink_name + "' to plugin '" + symlink_target + "'");
+            except:
+		print('[ERROR] an attempt to create a symlink ' + symlink_name + ' to plugin ' + symlink_target + ' failed, aborting!');
+    return;
 
-
-
+class install_(install):
     def run(self):
-        errors = False;
-        if not self._find_utility('ssh'):
-            print('FAIL: ssh client is not found');
-            errors = True;
-        if not self._find_utility('expect'):
-            print('FAIL: expect utility is not found');
-            errors = True;
-        if errors:
-            print('aborted install');
-            return;
+        ansible_dirs = pre_build_toolkit();
+	if len(ansible_dirs) == 0:
+	    return 1;
         install.run(self);
-        '''
-        Find current plugin directory
-        '''
-        ansible_dirs = self._find_py_package('ansible');
+	if len(ansible_dirs) > 0:
+	    self.execute(_post_build_toolkit, (ansible_dirs, self.install_lib, ), msg="running post_install_scripts");
+
+cmdclass['install'] = install_;
+cmdclass['bdist_wheel'] = install_;
+
+class uninstall_(develop):
+    def run(self):
+        plugin_dirs = [];
+        for dp in sys.path:
+	    if not re.search('site-packages$', dp):
+		continue;
+            ds = [name for name in os.listdir(dp) if os.path.isdir(os.path.join(dp, name))];
+	    if ds:
+		for d in ds:
+		    if not re.match(pkg_name, d):
+			continue;
+		    if os.path.join(dp, d) not in plugin_dirs:
+                        plugin_dirs.append(os.path.join(dp, d));
+        if plugin_dirs:
+	    for dp in plugin_dirs:
+		try:
+		    for root, dirs, files in os.walk(dp, topdown=False):
+                        for name in files:
+                            if os.path.islink(os.path.join(root, name)):
+			        os.unlink(os.path.join(root, name));
+                            else:
+                                os.remove(os.path.join(root, name));
+                        for name in dirs:
+                            os.rmdir(os.path.join(root, name));
+		    os.rmdir(dp);
+                    print("[INFO] deleted '" + dp + "'");
+		except:
+		    print("[INFO] failed to delete '" + dp + "'");
+		    exc_type, exc_value, exc_traceback = sys.exc_info();
+		    print(traceback.format_exception(exc_type, exc_value, exc_traceback));
+        else:
+	    print("[INFO] no relevant files for the uninstall found, all clean");
+
+        ansible_dirs = _find_py_package('ansible');
         if len(ansible_dirs) == 0:
-            print('FAIL: ansible is not found');
+            print("[ERROR] 'ansible' python package was not found");
             return;
-        '''
-        Find this plugin's directory
-        '''
-        plugin_dirs = self._find_py_package(pkg_name);
-        if len(plugin_dirs) == 0:
-            print('FAIL: ' + pkg_name + ' is not found');
-            return;
-
-        '''
-        Create a symlink, i.e. `ln -s TARGET LINK_NAME`
-        '''
-        _errors = [];
-        _symlinks = {};
-        _id = 0;
-        for pdir in plugin_dirs:
-            for adir in ansible_dirs:
-                for i in ['action', 'callback']:
-                    symlink_target = os.path.join(pdir, 'plugins/' + i + '/ndmtk.py');
-                    symlink_name = os.path.join(adir, 'plugins/' + i + '/ndmtk.py');
+        for ansible_dir in ansible_dirs:
+            for suffix in ['.py', '.pyc']:
+                for plugin_type in ['plugins/action', 'plugins/callback']:
+                    plugin_file = os.path.join(ansible_dir, plugin_type , pkg_name + suffix);
                     try:
-                        if os.path.exists(symlink_name):
-                            os.unlink(symlink_name);
-                        os.symlink(symlink_target, symlink_name);
-                        os.chmod(symlink_name, stat.S_IRUSR | stat.S_IWUSR);
-                        _symlinks[_id] = {'symlink': symlink_name, 'target': symlink_target};
-                        _id += 1;
+                        os.unlink(plugin_file);
                     except:
-                        _errors.append('an attempt to create a symlink ' + symlink_name + ' to plugin ' + symlink_target + ' failed');
-        if len(_errors) > 0:
-            for i in _errors:
-                print('FAIL: ' + i);
-        if len(_symlinks) > 0:
-            for i in _symlinks:
-                print('SUCCESS: the symlink ' + _symlinks[i]['symlink'] + ' to plugin ' + _symlinks[i]['target'] + ' was created successfully');
+                        pass;
+                    try:
+                        os.remove(plugin_file);
+                    except:
+                        pass;
+        return;
 
 
-    @staticmethod
-    def _find_utility(name):
-        x = any(os.access(os.path.join(path, name), os.X_OK) for path in os.environ["PATH"].split(os.pathsep));
-        return x;
+cmdclass['uninstall'] = uninstall_;
 
-    @staticmethod
-    def _find_py_package(name):
-        pkg_dirs = [];
-        for path in sys.path:
-            if not re.search('site-packages$', path):
-                continue;
-            if not os.path.exists(path):
-                continue;
-            if not os.path.isdir(path):
-                continue
-            target = os.path.join(path, name);
-            if not os.path.exists(target):
-                continue;
-            if not os.path.isdir(target):
-                continue;
-            if target not in pkg_dirs:
-                pkg_dirs.append(target);
-        return pkg_dirs;
-
-pkg_dir = path.abspath(path.dirname(__file__));
+pkg_dir = os.path.abspath(os.path.dirname(__file__));
 pkg_license='OSI Approved :: GNU General Public License v3 or later (GPLv3+)';
 pkg_description = 'Network Discovery and Management Toolkit packaged as Ansible Plugin';
 pkg_url = 'https://github.com/greenpau/' + pkg_name;
@@ -154,7 +247,7 @@ pkg_keywords=[
 pkg_test_suite='setup._load_test_suite';
 
 pkg_long_description=pkg_description;
-with open(path.join(pkg_dir, pkg_name, 'README.rst'), encoding='utf-8') as f:
+with open(os.path.join(pkg_dir, pkg_name, 'README.rst'), encoding='utf-8') as f:
     pkg_long_description = f.read();
 
 setup(
@@ -176,8 +269,5 @@ setup(
     keywords=pkg_keywords,
     install_requires=pkg_requires,
     test_suite=pkg_test_suite,
-    cmdclass={
-        'install': InstallAddons,
-        'bdist_wheel': InstallAddons,
-    },
+    cmdclass=cmdclass
 );

@@ -247,3 +247,24 @@ This playbook shows how to collecte data via the chaing of devices, i.e
 ```
 
 :arrow_up: [Back to top](#top)
+
+*****
+
+## Common Errors
+
+A user may receive the following error:
+
+``` {.sourceCode .shell}
+fatal: [ny-fw01]: FAILED! => {
+    "failed": true,
+    "msg": "The module ndmtk was not found in configured module paths.
+            Additionally, core modules are missing.
+            If this is a checkout, run 'git submodule update --init --recursive'
+            to correct this problem."
+}
+```
+
+This is the indication that something is broken with setup.py. The issue
+maybe caused by the lack of permissions. Please open an issue.
+
+:arrow_up: [Back to top](#top)

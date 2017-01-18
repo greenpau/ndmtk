@@ -3,7 +3,7 @@
 export USER
 PLUGIN_NAME="ndmtk"
 PLUGIN_NAME_EGG := $(subst -,_,$(PLUGIN_NAME))
-PLUGIN_VER=0.1
+PLUGIN_VER=0.1.1
 DOCKER_IMAGE_NAME="greenpau/ndmtk"
 DOCKER_CONTAINER_NAME="ndmtk"
 DOCKER_CONTAINER_SHELL="/bin/sh"
@@ -45,9 +45,11 @@ connect:
 package:
 	@sed -i 's/    VERSION:.*/    VERSION: \x27${PLUGIN_VER}\x27/' circle.yml
 	@sed -i 's/pkg_ver =.*/pkg_ver = \x27${PLUGIN_VER}\x27;/' setup.py
-	@sed -i 's/-[0-9]\.[0-9].tar.gz/-${PLUGIN_VER}.tar.gz/;' docker/alpine/Dockerfile
+	@sed -i 's/-[0-9]\.[0-9]\.[0-9].tar.gz/-${PLUGIN_VER}.tar.gz/;' docker/alpine/Dockerfile
+	@sed -i 's/-[0-9]\.[0-9]\.[0-9].tar.gz/-${PLUGIN_VER}.tar.gz/;' docker/centos/Dockerfile
 	@sed -i 's/^version =.*/version = u\x27${PLUGIN_VER}\x27/' ./docs/conf.py
 	@sed -i 's/^release =.*/release = u\x27${PLUGIN_VER}\x27/' ./docs/conf.py
+	@docs/markdown.sh
 	@pandoc --from=markdown --to=rst --output=${PLUGIN_NAME}/README.rst README.md
 	@sed -i 's/:arrow._up: //' ${PLUGIN_NAME}/README.rst
 	@sed -i 's/images\/ndmtk\.png/images\/ndmtk_pypi.png/' ${PLUGIN_NAME}/README.rst
@@ -64,6 +66,7 @@ docs:
 	@docs/markdown.sh
 	@pandoc --from=markdown --to=rst --output=${PLUGIN_NAME}/README.rst README.md
 	@sed -i 's/:arrow._up: //' ${PLUGIN_NAME}/README.rst
+	@sed -i 's/images\/ndmtk\.png/images\/ndmtk_pypi.png/' ${PLUGIN_NAME}/README.rst
 	@cp LICENSE.txt ${PLUGIN_NAME}/LICENSE.txt
 	@cd docs && eval ${DOCKER_BINARY} build -t greenpau/ndmtk-docs .
 	@echo "run 'docker run --rm -p 8000:8000 greenpau/ndmtk-docs' and review documentation at 'http://localhost:8000'"

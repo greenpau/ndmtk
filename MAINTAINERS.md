@@ -65,7 +65,7 @@ Next, the maintainer tags the release with an appropriate version and name.
 The maintainer pushes the tags to upstream.
 
 ```
-git tag -a v0.1 -m "Flamingo Release"
+git tag -a v0.1.1 -m "Robin Release"
 git push
 git push --tags
 ```

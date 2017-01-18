@@ -50,6 +50,17 @@ git remote add upstream git@github.com:greenpau/ndmtk.git
 Thereafter, the contributor follows the Initial Github Commit and Pull Request
 guidance.
 
+:warning: In some instances, a user's fork does not sync with its **upstream**
+automatically. In those cases, the user must manually sync the fork:
+
+```
+git checkout master
+git remote add upstream git://github.com/greenpau/ndmtk.git
+git fetch upstream
+git merge upstream/master master
+git push
+```
+
 :arrow_up: [Back to top](#top)
 
 *****
