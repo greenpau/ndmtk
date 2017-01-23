@@ -214,7 +214,7 @@ pkg_data=[
     'plugins/action/*.j2',
     'plugins/action/*.yml',
     'plugins/action/files/cli/os/*.yml',
-    'plugins/action/files/cli/addons/*.yml',
+    'plugins/action/files/cli/core/*.yml',
     'README.rst',
     'LICENSE.txt',
 ];
