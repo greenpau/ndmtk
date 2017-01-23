@@ -46,12 +46,17 @@ ndmtk:
   saveas: '%h.services.txt'
   conditions_match_any:
   - 'tag:processes:.*/systemd.*--system'
-- description: 'collect RHEL or CentOS version information'
+- description: 'collect RHEL version information'
   cli: 'cat /etc/redhat-release'
   tags: ['ref:version', 'configuration']
   saveas: '%h.version.txt'
   conditions_match_any:
   - 'tag:conf:/etc/redhat-release'
+- description: 'collect CentOS version information'
+  cli: 'cat /etc/os-release'
+  tags: ['ref:version', 'configuration']
+  conditions_match_any:
+  - 'tag:conf:/etc/os-release'
 - description: 'collect current time'
   cli: 'date'
   tags: clock
@@ -86,7 +91,7 @@ ndmtk:
   saveas: '%h.arp.txt'
 - description: 'collect kernel network interface statistics'
   cli: 'cat /proc/net/dev'
-  tags: ['network', 'test']
+  tags: ['network', 'test1']
   saveas: '%h.ifstats.txt'
   derivatives:
   - os:
@@ -330,7 +335,7 @@ ndmtk:
   - 'tag:conf:/etc/audit/auditd.conf$'
 - description: 'collect the file listing related to security configuration of various PAM modules'
   cli: 'find /etc/security/ -type f -name "*.conf"'
-  tags: ['network', 'test']
+  tags: ['network', 'test1']
   saveas: '%h.files.etc.security.txt'
   preserve: no
   derivatives:

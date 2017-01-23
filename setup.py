@@ -30,7 +30,7 @@ import stat;
 import unittest;
 
 pkg_name = 'ndmtk';
-pkg_ver = '0.1.1';
+pkg_ver = '0.1.2';
 
 cmdclass = {};
 

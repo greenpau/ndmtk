@@ -141,6 +141,126 @@ finds a BGP neighbor, it will collect the ``advertised-routes`` and
 |Back to Top|_ `Back to Top`_
 
 
+No Newline
+^^^^^^^^^^
+
+In some cases, there is a need to check the command line options available to
+a user. Traditionally, a user would do it with question mark at the end of the
+user's request.
+
+Here, the user issues ``show service-policy inspect ?`` to get available options.
+However, when doing so, the user does not press ``Enter``. The ``no_newline`` field
+mimic the describes behavior. If the field does not exist or if it is set to
+``no``, then the newline character will be appended to the user's request.
+
+
+.. code-block:: yaml
+
+    - description: 'Collect a list of all possible inspection policies.'
+      cli: 'show service-policy inspect ?'
+      no_newline: yes
+      os:
+      - cisco_asa
+      tags: ['inspect', 'test']
+      conditions_match_all:
+      - '^policy-map\s'
+      - '^\s+class\s'
+      - '^\s+inspect\s'
+      derivatives:
+      - description: 'Collects information about individual inspection policies'
+        os:
+        - cisco_asa
+        regex:
+        - pattern: '^\s*(?P<INSPECTION_POLICY_NAME>\S+$)\s+Show'
+          flags: ['add_cli']
+        actions:
+        - description: 'Collects statistics for inspect <INSPECTION_POLICY_NAME> policy'
+          cli: 'show service-policy inspect <INSPECTION_POLICY_NAME>'
+          required: ['INSPECTION_POLICY_NAME']
+          format: 'txt'
+
+
+|Back to Top|_ `Back to Top`_
+
+Success and Error Overwrites
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+One of the derivative ``show service-policy inspect`` commands produces an error:
+
+.. code-block:: bash
+
+    show service-policy inspect h323
+    ERROR: % Incomplete command
+
+In order to avoid an error, a user may add ``success_if`` field. This causes
+the plugin to declare the output to be a success, despite that it is failing.
+
+.. code-block:: yaml
+
+    - description: 'Collects statistics for inspect <INSPECTION_POLICY_NAME> policy'
+      cli: 'show service-policy inspect <INSPECTION_POLICY_NAME>'
+      required: ['INSPECTION_POLICY_NAME']
+      format: 'txt'
+      success_if:
+      - '.*'
+
+|Back to Top|_ `Back to Top`_
+
+Facts
+^^^^^
+
+The plugin's configuration files has sections dedicated to fact discovery based
+on the outputs related to software and/or hardware information. For example,
+CentOS servers have ``/etc/os-release`` file.
+
+The contents of the file are as follows:
+
+.. code-block:: bash
+
+    NAME="CentOS Linux"
+    VERSION="7 (Core)"
+    ID="centos"
+    ID_LIKE="rhel fedora"
+    VERSION_ID="7"
+    PRETTY_NAME="CentOS Linux 7 (Core)"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:centos:centos:7"
+    HOME_URL="https://www.centos.org/"
+    BUG_REPORT_URL="https://bugs.centos.org/"
+
+    CENTOS_MANTISBT_PROJECT="CentOS-7"
+    CENTOS_MANTISBT_PROJECT_VERSION="7"
+    REDHAT_SUPPORT_PRODUCT="centos"
+    REDHAT_SUPPORT_PRODUCT_VERSION="7"
+
+The engine has rules to match against that output:
+
+.. code-block:: yaml
+
+      - pattern: '^NAME="?(?P<os_name>.*)["]?$'
+        add:
+        - 'os_class=generic_linux'
+        strip_quotes: yes
+      - pattern: '^VERSION_ID="?(?P<os_version>\d+)"?'
+        strip_quotes: yes
+      - pattern: '^ID=(?P<os_subclass>\S+)$'
+        strip_quotes: yes
+
+Please note the ``strip_quotes`` key. When plugin discovers its presence, it
+strips double quotes from the captured values.
+
+The plugin's analytics engine adds the metadata in the following format:
+
+.. code-block:: yaml
+
+      facts:
+        os_class: generic_linux
+        os_name: CentOS Linux
+        os_subclass: centos
+        os_version: '7'
+
+|Back to Top|_ `Back to Top`_
+
 Rule Design
 -----------
 

@@ -494,6 +494,7 @@ class ActionModule(ActionBase):
         self.conf['cliset_os_default_dir'] = os.path.join(self.plugin_root, 'files/cli/os');
         self.conf['cliset_os_dir'] = self._task.args.get('cliset_os_dir', os.path.join(self.ansible_root, 'files', self.plugin_name, 'os'));
         self.conf['cliset_host_dir'] = self._task.args.get('cliset_host_dir', os.path.join(self.ansible_root, 'files', self.plugin_name, 'host'));
+        self.conf['cliset_core_dir'] = self._task.args.get('cliset_core_dir', os.path.join(self.plugin_root, 'files/cli/core'));
         if not self.conf['disable_defaults']:
             for i in ['os_default', 'os', 'host']:
                 if i in ['os_default']:
@@ -502,6 +503,12 @@ class ActionModule(ActionBase):
                     filename = self.info[i] + '.yml';
                 self.conf['cliset_' + i] = os.path.join(self.conf['cliset_' + i + '_dir'], filename);
                 self._load_cliset(self.conf['cliset_' + i], i);
+            if self._is_dir_exists(self.conf['cliset_core_dir']):
+                for dp, dns, dfs in os.walk(self.conf['cliset_core_dir']):
+                    for fn in dfs:
+                        fp = os.path.join(dp, fn);
+                        if self._load_cliset(fp, 'core') == False:
+                            raise AnsibleError("data set of core cli commands failed to load: " + str(fp) + '\n' + '\n'.join(self.errors));
         else:
             self.conf['cliset_os_default'] = os.path.join(self.conf['cliset_os_default_dir'], self.info['os'] + '.yml');
             self._load_cliset(self.conf['cliset_os_default'], 'os_default', commit=False);
@@ -1068,12 +1075,15 @@ class ActionModule(ActionBase):
                             '''
                             check for the commands pending execution on a remote device.
                             '''
-                            clitask = self._get_cli_task('task');
+                            clitask, nonl = self._get_cli_task('task');
                             display.vvv('prompted for cli task, sending: ' + clitask, host=self.info['host']);
                             try:
-                                os.write(remote_session_stdout_pw.fileno(), clitask + "\n");
+                                if nonl:
+                                    os.write(remote_session_stdout_pw.fileno(), clitask);
+                                else:
+                                    os.write(remote_session_stdout_pw.fileno(), clitask + "\n");
                             except:
-                                display.vvv('sent failed for: ' + clitask, host=self.info['host']);
+                                display.vvv('sent failed for: ' + str(clitask).rstrip(), host=self.info['host']);
                                 self.errors.append('an attempt by ' + self.plugin_name + ' plugin to communicate with the remote hosts with pipes failed');
                                 exc_type, exc_value, exc_traceback = sys.exc_info();
                                 self.errors.extend(traceback.format_exception(exc_type, exc_value, exc_traceback));
@@ -1081,7 +1091,7 @@ class ActionModule(ActionBase):
                         elif re.search('clifile:', remote_session_stdin):
                             display.vvv('prompted for cli output filename', host=self.info['host']);
                             _prompted = True;
-                            clifile = self._get_cli_task('file');
+                            clifile, nonl = self._get_cli_task('file');
                             display.vvv('sending: ' + clifile, host=self.info['host']);
                             try:
                                 os.write(remote_session_stdout_pw.fileno(), clifile + "\n");
@@ -1102,7 +1112,7 @@ class ActionModule(ActionBase):
                                 request = 'exit';
                             display.vvv('prompted for cli ' + request, host=self.info['host']);
                             _prompted = True;
-                            response = self._get_cli_task(request);
+                            response, nonl = self._get_cli_task(request);
                             try:
                                 display.vvv('sending: ' + str(response), host=self.info['host']);
                                 if request == 'exit':
@@ -1194,11 +1204,12 @@ class ActionModule(ActionBase):
         '''
 
         _is_sudo_eligible = False;
+        nonl = False;
 
         if item == 'exit':
             if 'exit_sequence' in self.conf:
-                return self.conf['exit_sequence'];
-            return 'exit';
+                return self.conf['exit_sequence'], nonl;
+            return 'exit', nonl;
 
         '''
         The `abort` variable could be used to tell the child process
@@ -1208,7 +1219,7 @@ class ActionModule(ActionBase):
         '''
 
         if self.conf['abort'] == True:
-            return 'abort';
+            return 'abort', nonl;
 
         for i in ['paging', 'scripting', 'prompt']:
             if i + '_mode' not in self.status:
@@ -1220,21 +1231,21 @@ class ActionModule(ActionBase):
                 TODO: verify sequence of multiple exit commands works
                 '''
                 if isinstance(self.conf[i], list):
-                    return '\n'.join(self.conf[i]);
-                return self.conf[i];
+                    return '\n'.join(self.conf[i]), nonl;
+                return self.conf[i], nonl;
             elif item in ['file', 'mode']:
                 '''
                 There is an existing connection log. The plugin will append
                 the data to the log.
                 '''
-                return i;
+                return i, nonl;
             else:
                 pass
 
         if 'cliset_last_eid' not in self.conf:
-            return 'eol';
+            return 'eol', nonl;
         if '_eof' in self.conf:
-            return 'eol';
+            return 'eol', nonl;
         if item == 'task':
             _break = False;
             '''
@@ -1286,7 +1297,7 @@ class ActionModule(ActionBase):
                                     break;
                         else:
                             self.conf['_eof'] = True;
-                            return 'eol';
+                            return 'eol', nonl;
                     '''
                     At this point, the plugin knows the next available command to send.
                     '''
@@ -1325,23 +1336,28 @@ class ActionModule(ActionBase):
                 if _break:
                     break;
         if self.conf['cliset_last_eid'] not in self.conf['cliset']:
-            return 'eol';
+            return 'eol', nonl;
         if item == 'task':
             '''
             Record a task's stat time.
             '''
             if self.conf['cliset_last_eid'] in self.conf['cliset']:
                 self.conf['cliset'][self.conf['cliset_last_eid']]['time_start'] = int(round(time.time() * 1000));
+                ts = time.strftime("%Y-%m-%dT%H:%M:%S UTC", time.gmtime(self.conf['cliset'][self.conf['cliset_last_eid']]['time_start'] / 1000));
+                self.conf['cliset'][self.conf['cliset_last_eid']]['timestamp'] = ts;
+            if 'no_newline' in self.conf['cliset'][self.conf['cliset_last_eid']]:
+                if self.conf['cliset'][self.conf['cliset_last_eid']]['no_newline'] is True:
+                    nonl = True;
             if _is_sudo_eligible:
-                return 'sudo ' + self.conf['cliset'][self.conf['cliset_last_eid']]['cli'];
-            return self.conf['cliset'][self.conf['cliset_last_eid']]['cli'];
+                return 'sudo ' + self.conf['cliset'][self.conf['cliset_last_eid']]['cli'], nonl;
+            return self.conf['cliset'][self.conf['cliset_last_eid']]['cli'], nonl;
         elif item == 'file':
-            return self.conf['cliset'][self.conf['cliset_last_eid']]['filename'];
+            return self.conf['cliset'][self.conf['cliset_last_eid']]['filename'], nonl;
         elif item == 'mode':
-            return self.conf['cliset'][self.conf['cliset_last_eid']]['mode'];
+            return self.conf['cliset'][self.conf['cliset_last_eid']]['mode'], nonl;
         else:
             pass;
-        return 'eol';
+        return 'eol', nonl;
 
 
     def _evaluate_conditions(self, cli_id):
@@ -1480,6 +1496,10 @@ class ActionModule(ActionBase):
         '''
         Validate and analyze the patterns.
         '''
+        if not isinstance(cds, list):
+            display.display('<' + self.info['host'] + '> "' + scope + '" conditional is invalid for cli: "' + str(cli) + '" "' +  str(cds) + '"', color='red');
+            self.conf['abort'] = True;
+            return False;
         for c in cds:
             r[i] = {};
             if re.match('tag:', c):
@@ -1585,7 +1605,10 @@ class ActionModule(ActionBase):
                             _no_match = False;
                             gps = m.groupdict();
                             for k in gps:
-                                facts[k] = gps[k];
+                                single_fact = str(gps[k]);
+                                if 'strip_quotes' in p:
+                                    single_fact = single_fact.strip('"');
+                                facts[k] = single_fact;
                             if 'add' in p:
                                 for t in p['add']:
                                     if len(t.split('=')) != 2:
@@ -1601,9 +1624,9 @@ class ActionModule(ActionBase):
                         self.errors.extend(traceback.format_exception(exc_type, exc_value, exc_traceback));
                         return;
                 if _no_match:
-                    display.vv('no match for: ' + line);
+                    display.vv('facts: no match for: ' + line);
                 else:
-                    display.vv('match found:  ' + line);
+                    display.vv('facts: match found:  ' + line);
             display.vv(str(facts));
         except:
             self.errors.append('the host facts lookup failed');
@@ -1641,8 +1664,8 @@ class ActionModule(ActionBase):
             patterns = derivative['regex'];
             actions = derivative['actions'];
             _os_not_found = True;
-            for os in oslist:
-                if re.match(os, self.info['os']):
+            for _os in oslist:
+                if re.match(_os, self.info['os']):
                     _os_not_found = False;
                     break;
             if _os_not_found:
@@ -1655,6 +1678,10 @@ class ActionModule(ActionBase):
                     try:
                         m = re.match(p['pattern'], line);
                         if m:
+                            if 'flags' not in p:
+                                self.errors.append('the derivative pattern "' + p['pattern'] + '" for "' + str(oslist) + '" has no flags');
+                                self.conf['cliset'][cli_id]['status'] = 'failed';
+                                break;
                             flags.extend(p['flags']);
                             # FIX: display.display('<' + self.info['host'] + '> match found: ' + str(m.groupdict()), color='red');
                             gd = m.groupdict();
@@ -1725,11 +1752,12 @@ class ActionModule(ActionBase):
                             else:
                                 cli_entry['format'] = 'txt';
                             if 'saveas' in a:
-                                cli_entry['filename'] = str(a['saveas']) + '.' + str(i).zfill(4);
-                                cli_entry['saveas'] = self._decode_ref(str(a['saveas']));
+                                _saveas = self._normalize_str(str(a['saveas']));
+                                cli_entry['saveas'] = self._decode_ref(_saveas);
+                                cli_entry['filename'] = os.path.basename(cli_entry['saveas']);
                                 for k in db:
-                                    cli_entry['saveas'] = str(cli_entry['saveas']).replace("<" + k + ">", str(db[k]))
-                                    cli_entry['filename'] = str(cli_entry['filename']).replace("<" + k + ">", str(db[k]))
+                                    cli_entry['saveas'] = str(cli_entry['saveas']).replace("<" + k + ">", str(self._normalize_str(db[k])));
+                                    cli_entry['filename'] = str(cli_entry['filename']).replace("<" + k + ">", str(self._normalize_str(db[k])));
                                 cli_entry['filename'] = self._decode_ref(cli_entry['filename'])
                                 '''
                                 Although this command is a part of series of commands and the information is written
@@ -1738,15 +1766,20 @@ class ActionModule(ActionBase):
                                 if i == 1:
                                     cli_entry['overwrite'] = True;
                             else:
-                                cli_entry['filename'] = self._get_filename_from_cli(self.info['host'], c, cli_entry['format']);
+                                cli_entry['filename'] = self._normalize_str(c, self.info['host'], cli_entry['format']);
                             if 'allow_empty_response' in a:
                                 cli_entry['allow_empty_response'] = a['allow_empty_response'];
                             else:
                                 cli_entry['allow_empty_response'] = False;
+                            for k in ['error_if_all', 'error_if', 'success_if_all', 'success_if']:
+                                if k in a:
+                                    cli_entry[k] = a[k];
                             if 'mode' in a:
                                 cli_entry['mode'] = a['mode'];
                             else:
                                 cli_entry['mode'] = 'analytics';
+                            if 'derivatives' in a:
+                                cli_entry['derivatives'] = a['derivatives'];
                             '''
                             TODO: this is a remnant of some other thing. check `preserve`
                             '''
@@ -1867,14 +1900,37 @@ class ActionModule(ActionBase):
 
         '''
         Parse for errors and filter output prior to saving it.
+        Additionally, inspect the contents for the purposes of `success_if` and `error_if`
+        conditions.
         '''
+        _status_db = {};
+        _is_eval_status = False;
+        for k in ['error_if_all', 'error_if', 'success_if_all', 'success_if']:
+            if k in self.conf['cliset'][cli_id]:
+                _is_eval_status = True;
+                if not isinstance(self.conf['cliset'][cli_id][k], list):
+                    self.errors.append('\'' + str(cli) + '\' command failed due to unsupported error_if/success_if evaluation: ' + str(self.conf['cliset'][cli_id][k]));
+                    self.conf['cliset'][cli_id]['status'] = 'failed';
+                    return True;
+                _status_db[k] = {};
+                for i, v in enumerate(self.conf['cliset'][cli_id][k]):
+                    _status_db[k][i] = { 'pattern': v, 'found': False };
+
+        _is_erred = False;
         for line in fc:
             if not lines and re.match('^\s*$', line):
                 continue;
             if not lines and re.match('show\s', line):
                 continue;
+            '''
+            Evaluate output for errors.
+            '''
             for err in self.conf['output_errors']:
+                if _is_erred:
+                    break;
                 for rgx in err['regex']:
+                    if _is_erred:
+                        break
                     if re.search(rgx, line):
                         display.vvv('the line "' + str(line) + '" matches an error pattern "' + str(rgx) + '"');
                         _is_exempt = False;
@@ -1911,15 +1967,24 @@ class ActionModule(ActionBase):
                                     if re.search('(' + '|'.join(err['os']) + ')', str(self.info['os'])):
                                         self.conf['cliset'][cli_id]['sudo_eligible'] = 0;
                                         self.conf['cliset'][cli_id]['status'] = 'sudo_eligible';
+                                        return True;
                             else:
-                                self.conf['cliset'][cli_id]['status'] = 'failed';
+                                _status_db['status'] = 'failed';
+                                _is_erred = True;
                             if self.conf['cliset'][cli_id]['status'] != 'sudo_eligible':
-                                self.errors.append('\'' + str(cli) + '\' command failed due to ' + err['msg']);
-                                if 'system_err' not in self.conf['cliset'][cli_id]:
-                                    self.conf['cliset'][cli_id]['system_err'] = [];
-                                self.conf['cliset'][cli_id]['system_err'].extend(fc);
-                                self.conf['cliset'][cli_id]['status'] = 'failed';
-                            return True;
+                                _status_db['errors'] = '\'' + str(cli) + '\' command failed due to ' + err['msg'];
+                                _status_db['status'] = 'failed';
+                                _is_erred = True;
+            '''
+            Evaluate `success_if` and `error_if` conditions.
+            '''
+            if _is_eval_status:
+                for k in ['error_if_all', 'error_if', 'success_if_all', 'success_if']:
+                    if k not in _status_db:
+                        continue;
+                    for i in _status_db[k]:
+                        if re.search(_status_db[k][i]['pattern'], line):
+                            _status_db[k][i]['found'] = True;
             _is_removed = False;
             '''
             Perform string removal based on the plugin's `output_filter_remove`
@@ -1949,9 +2014,13 @@ class ActionModule(ActionBase):
                 continue;
             if not _is_removed:
                 lines.append(line);
+        '''
+        Write the modified output to file.
+        '''
         fm = 'w';
         with open(fn, fm) as f:
             f.write('\n'.join(lines) + '\n');
+
         '''
         When running in `configure` mode, the plugin records output into
         internal buffers. Later, this information becomes a part of JUnit
@@ -1959,7 +2028,39 @@ class ActionModule(ActionBase):
         '''
         if self.conf['cliset'][cli_id]['mode'] != 'analytics':
             self.conf['cliset'][cli_id]['system_out'] = '\n'.join(lines) + '\n';
-        return False;
+
+        '''
+        Add status about `success_if` and `error_if` conditions.
+        '''
+        if len(_status_db) > 0:
+            for k in ['success_if', 'success_if_all', 'error_if', 'error_if_all']:
+                if k not in _status_db:
+                    continue;
+                _is_match_partial = False;
+                _is_match_full = True;
+                for i in _status_db[k]:
+                    if _status_db[k][i]['found'] == True:
+                        _is_match_partial = True;
+                    else:
+                        _is_match_full = False;
+                if (k == 'success_if' and _is_match_partial) or (k == 'success_if_all' and _is_match_full):
+                    self.conf['cliset'][cli_id]['status'] = 'ok';
+                    return False;
+                elif (k == 'error_if' and _is_match_partial) or (k == 'error_if_all' and _is_match_full):
+                    self.conf['cliset'][cli_id]['status'] = 'failed';
+                    if 'errors' in _status_db:
+                        self.errors.append(_status_db['errors']);
+                    if 'system_err' not in self.conf['cliset'][cli_id]:
+                        self.conf['cliset'][cli_id]['system_err'] = [];
+                    self.conf['cliset'][cli_id]['system_err'].extend(lines);
+                    return True;
+                else:
+                    pass;
+        else:
+            self.conf['cliset'][cli_id]['status'] = 'ok';
+            return False;
+        self.conf['cliset'][cli_id]['status'] = 'failed';
+        return True;
 
 
     @staticmethod
@@ -2220,13 +2321,13 @@ class ActionModule(ActionBase):
           * `post`
         '''
         if not os.path.exists(fn):
-            return;
+            return False;
         if not os.path.isfile(fn):
             self.errors.append(fn + ' is not a file');
-            return;
+            return False;
         if not os.access(fn, os.R_OK):
             self.errors.append(fn + ' is not readable');
-            return;
+            return False;
         fc = None;
         try:
             with open(fn) as f:
@@ -2235,26 +2336,28 @@ class ActionModule(ActionBase):
             self.errors.append('an attempt to read ' + self.plugin_name + ' data from ' + str(fn) + ' failed.');
             exc_type, exc_value, exc_traceback = sys.exc_info();
             self.errors.extend(traceback.format_exception(exc_type, exc_value, exc_traceback));
-            return;
+            return False;
         if not fc:
             self.errors.append('an attempt to read ' + self.plugin_name + ' data from ' + str(f) + ' failed because no data was found.');
-            return;
+            return False;
         if 'ndmtk' not in fc:
             self.errors.append('the ' + self.plugin_name + ' data from ' + str(fn) + ' does not have reference to \'ndmtk\' list.');
-            return;
+            return False;
         if 'clisets' not in self.status:
             self.status['clisets'] = [];
         self.status['clisets'].append(fn);
         for entry in fc['ndmtk']:
+            _continue = False;
             entry_tags = [];
             if not isinstance(entry, dict):
                 self.errors.append('the ' + self.plugin_name + ' data from ' + str(fn) + ' is not a list of dictionaries.');
-                return;
+                return False;
             required_keys = ['cli'];
             optional_keys = [
                 'tags', 'paging', 'format', 'scripting', 'mode', 'pre', 'post', 'saveas',
                 'conditions_match_any', 'conditions_match_all', 'conditions_match_all_nolimit',
                 'derivatives', 'preserve', 'description', 'allow_empty_response', 'conditions_precedent_all',
+                'os', 'no_newline', 'error_if_all', 'error_if', 'success_if_all', 'success_if',
             ];
             for k in required_keys:
                 if k not in entry:
@@ -2264,6 +2367,21 @@ class ActionModule(ActionBase):
                 if k not in optional_keys and k not in required_keys:
                     self.errors.append('the \'' + str(k)  + '\' field in ' + str(entry) + ' in ' + str(fn) + ' is unsupported');
                     continue;
+                if k == 'os':
+                    os_lst = [];
+                    if isinstance(entry[k], str):
+                        os_lst.append(entry[k]);
+                    elif isinstance(entry[k], list):
+                        os_lst.extend(entry[k]);
+                    else:
+                        self.errors.append('the handling of \'' + k  + '\' field of ' + str(type(entry[k])) + ' type in ' + str(entry) + ' in ' + str(fn) + ' is unsupported');
+                    if 'os' in self.info:
+                        if self.info['os'] not in os_lst:
+                            '''
+                            The entry (rule) contains `os` filter. This host is not in the list of operating systems covered by this rule.
+                            '''
+                            _continue = True;
+                            break;
                 if k in ['paging', 'scripting']:
                     self.conf[k] = entry[k];
                 elif k == 'tags':
@@ -2276,6 +2394,8 @@ class ActionModule(ActionBase):
                 else:
                     pass;
 
+            if _continue:
+                continue;
             '''
             Add additional tags based on references.
             '''
@@ -2311,7 +2431,6 @@ class ActionModule(ActionBase):
 
             if not commit:
                 continue;
-
 
             '''
             By default, the plugin does not allow to run show tech type commands.
@@ -2357,7 +2476,7 @@ class ActionModule(ActionBase):
             '''
 
             if self.errors:
-                return;
+                return False;
 
             '''
             If no errors, then the plugin creates the entries in its internal
@@ -2396,7 +2515,7 @@ class ActionModule(ActionBase):
                         if entry_mode == 'noop' or self.conf['cliset'][c]['mode'] == 'noop':
                             continue;
                         self.errors.append('the plugin does not support the mixing of \'configure\' and \'analytics\' modes in the same run');
-                        return;
+                        return False;
             if _is_duplicate_cli:
                 continue;
 
@@ -2461,8 +2580,8 @@ class ActionModule(ActionBase):
                     if entry_mode == 'configure':
                         c['filename'] = 'response.' + str(self.conf['cliset_last_id']) + '.txt';
                     else:
-                        c['filename'] = self._get_filename_from_cli(self.info['host'], entry_task, c['format']);
-                for j in ['preserve', 'description', 'allow_empty_response', 'derivatives']:
+                        c['filename'] = self._normalize_str(entry_task, self.info['host'], c['format']);
+                for j in ['preserve', 'description', 'allow_empty_response', 'derivatives', 'no_newline', 'error_if_all', 'error_if', 'success_if_all', 'success_if']:
                     if j in entry:
                         c[j] = entry[j];
                 '''
@@ -2518,7 +2637,7 @@ class ActionModule(ActionBase):
             for t in entry_tags:
                 if t in ['version', 'configuration'] and 'cli' in entry:
                     self.conf[t] = entry['cli'];
-        return;
+        return True;
 
 
     def _report(self):
@@ -2562,6 +2681,9 @@ class ActionModule(ActionBase):
             'child_cli_id',
             'sudo_eligible',
             'conditions_precedent_all',
+            'time',
+            'time_start',
+            'timestamp',
         ];
 
         '''
@@ -2630,11 +2752,8 @@ class ActionModule(ActionBase):
                 for p in ['return_code', 'return_status', 'return_msg', 'paging_mode', 'scripting_mode', 'prompt_mode', 'clisets']:
                     if p in self.status:
                         if p == 'clisets':
-                            if len(self.status[p]) > 1:
-                                for i in range(len(self.status[p])):
-                                    _ds[_ts_name]['properties'].append( (p + '.' + str(i), str(self.status[p]) ));
-                            else:
-                                _ds[_ts_name]['properties'].append((p, ''.join(self.status[p]) ));
+                            for i, v in enumerate(self.status[p]):
+                                _ds[_ts_name]['properties'].append( (p + '.' + str(i), str(v)));
                         else:
                             _ds[_ts_name]['properties'].append( (p, str(self.status[p]) ));
             '''
@@ -2952,8 +3071,13 @@ class ActionModule(ActionBase):
 
 
     @staticmethod
-    def _get_filename_from_cli(host, cmd, suffix):
-        cmd = cmd.replace('_', '_US_').replace('/', '_FS_').replace('|', '_PIPE_').replace('.', '_DOT_').replace(' ', '.');
+    def _normalize_str(cmd, host=None, suffix=None):
+        if host is not None and suffix is not None:
+            cmd = cmd.replace('_', '_US_');
+        cmd = cmd.replace('/', '_FS_').replace('|', '_PIPE_').replace('.', '_DOT_').replace(' ', '.');
+        cmd = cmd.replace(':', '_CL_').replace(';', '_SCL_').replace('@', '_ATS_').replace('?', '_QM_');
+        if host is None or suffix is None:
+            return cmd;
         cmd = host + '.' + cmd + '.' + suffix;
         return cmd;
 

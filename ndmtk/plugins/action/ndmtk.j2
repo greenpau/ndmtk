@@ -123,6 +123,7 @@ proc send_status {status} {
 }
 
 proc get_credentials {tp} {
+    expect *;
     global username;
     global password;
     global password_enable;
@@ -168,27 +169,33 @@ proc get_credentials {tp} {
         }
     }
     set expect_out(buffer) {};
+    expect *;
     return;
 }
 
-
 proc get_cli_task {item} {
+    expect *;
     global ERROR_INPUT_TASK;
     global session_log;
     global transaction_id;
+    set nl "\n";
 
     if { [ catch {
         puts stdout "$item:";
     } err ] } {
         puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='$err'";
         puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='failed to send $item request, because manager closed pipe prematurely' rc=$ERROR_INPUT_TASK";
-        return "abort";
+        return [list "abort" $nl];
     }
 
     expect_user {
-        -re "(.*)\n" {
+        -re "(.*)(\n|\\?)" {
             set uitem $expect_out(1,string);
+            set uitem_end $expect_out(2,string);
             puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='received $item: $uitem'";
+            if { $uitem_end == "?" } {
+                set nl "?";
+            }
             set item $uitem;
         }
         default {
@@ -197,7 +204,8 @@ proc get_cli_task {item} {
         }
     }
     set expect_out(buffer) {};
-    return $item;
+    expect *;
+    return [list $item $nl];
 }
 
 proc get_new_prompt {cli_output} {
@@ -538,13 +546,17 @@ set cli_status "unknown";
 
 log_commit;
 
+
 while {1} {
     set timeout $session_timeout;
     set _break_exec "no";
     set _goto_next "no";
     set clitask "";
+    set nl "\n";
     if { $session_open > 0 } {
-        set clitask [get_cli_task "clitask"];
+        set req [get_cli_task "clitask"];
+        set clitask [lindex $req 0];
+        set nl [lindex $req 1];
     }
     if { $clitask == "input cli commands for debugging" } {
         exp_internal 1;
@@ -552,8 +564,10 @@ while {1} {
     set clifile "";
     set climode "";
     if { $clitask != "" && $clitask != "eol" && $clitask != "abort" } {
-        set clifile [get_cli_task "clifile"];
-        set climode [get_cli_task "climode"];
+        set req [get_cli_task "clifile"];
+        set clifile [lindex $req 0];
+        set req [get_cli_task "climode"];
+        set climode [lindex $req 0];
         if { $clifile == "abort" || $climode == "abort" } {
             set clitask "abort";
         }
@@ -576,7 +590,8 @@ while {1} {
                 break;
             }
             puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='logging out'";
-            set clitask [get_cli_task "cliexit"];
+            set req [get_cli_task "cliexit"];
+            set clitask [lindex $req 0];
             set fn "$session_disconnect_log_file";
             set climode "post";
             set rwmode "a";
@@ -649,7 +664,11 @@ while {1} {
     if { $host_operating_system == "brocade_serveriron" || $host_operating_system == "paloalto_panos" } {
         send -h "\x0d\x0a";
     }
-    send -h "$clitask\n";
+    if { $nl == "?" } {
+        send -h "$clitask\x3f";
+    } else {
+        send -h "$clitask\n";
+    }
     if { $host_operating_system == "generic_linux" || $host_operating_system == "opengear_linux" } {
         expect -re "\r\n|\n|\r";
         expect -re $;
@@ -737,6 +756,14 @@ while {1} {
             send_status "$climode:configured";
         } else {
             send_status "$climode:failed";
+        }
+    }
+    if { $nl == "?" } {
+        set i 0;
+        set prev_cli_len [string length $clitask];
+        while { $i < $prev_cli_len } {
+            send "\x08";
+            incr i;
         }
     }
 }

@@ -84,6 +84,35 @@ git push -u origin mychangebranch
 
 Then, make changes to existing files, add new files, and/or delete old files.
 
+#### Patching
+
+A developer may change the plugin's code directly, inside `lib/python/site-packages`.
+Later, the developer may decide to submit a patch. The below are the instructions
+to create a patch.
+
+Create a diff file, where `/home/greenpau/github.com/greenpau/ndmtk/ndmtk` is intact
+source code directory and the `/lib/...` contains modified code:
+
+```
+diff -aNur -x '*.pyc' /home/greenpau/github.com/greenpau/ndmtk/ndmtk /lib/python/site-packages/ndmtk > ~/greenpau.ndmtk.v0.1.1.diff
+```
+
+Next, normalize the diff:
+
+```
+sed -i 's/\/.*ndmtk\//ndmtk\//g' ~/greenpau.ndmtk.v0.1.1.diff
+```
+
+Then, create a new branch and apply the patch:
+
+```
+cd /home/greenpau/github.com/greenpau/ndmtk
+git checkout master
+git checkout -b patch001
+git push -u origin patch001
+patch -p0 < ~/greenpau.ndmtk.v0.1.1.diff
+```
+
 :arrow_up: [Back to top](#top)
 
 *****

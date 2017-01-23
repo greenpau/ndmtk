@@ -1,0 +1,199 @@
+---
+#
+# ndmtk - Network Discovery and Management Toolkit
+# Copyright (C) 2016 Paul Greenberg @greenpau
+# See LICENSE.txt for licensing details
+#
+# File: plugins/action/files/cli/core/openflow.yml
+#
+
+ndmtk:
+- description: 'collect information about Open vSwitch version'
+  os:
+  - generic_linux
+  cli: 'ovs-ofctl --version'
+  tags: ['ovs', 'network']
+  saveas: '%h.ovs.version.txt'
+  conditions_match_all:
+  - 'tag:binaries:.*bin/ovs-ofctl$'
+- description: 'collect information about Open vSwitch database'
+  os:
+  - generic_linux
+  cli: 'ovs-vsctl show'
+  tags: ['ovs', 'network']
+  saveas: '%h.ovs.database.txt'
+  conditions_match_all:
+  - 'tag:binaries:.*bin/ovs-ofctl$'
+- description: 'collect information about Open vSwitch bridges'
+  os:
+  - generic_linux
+  cli: 'ovs-vsctl list-br'
+  tags: ['ovs', 'network']
+  conditions_match_all:
+  - 'tag:binaries:.*bin/ovs-vsctl$'
+  - 'tag:binaries:.*bin/ovs-ofctl$'
+  derivatives:
+  - os:
+    - generic_linux
+    regex:
+    - pattern: '^\s*(?P<BRIDGE_NAME>[0-9A-Za-z]\S+)\s*'
+      flags: ['add_cli']
+    actions:
+    - description: 'collect information about the controllers, e.g. OpenDaylight, managing the <BRIDGE_NAME> bridge'
+      cli: 'ovs-vsctl get-controller <BRIDGE_NAME>'
+      required: ['BRIDGE_NAME']
+      format: 'txt'
+      derivatives:
+      - os:
+        - generic_linux
+        regex:
+        - pattern: '^\s*(?P<CONTROLLER_NAME>[0-9A-Za-z]\S+)\s*'
+          flags: ['add_cli']
+        actions:
+        - description: 'test latency to the OpenFlow controller <CONTROLLER_NAME> with 100 packets'
+          cli: 'ovs-ofctl ping <CONTROLLER_NAME> 100'
+          required: ['CONTROLLER_NAME']
+          format: 'txt'
+        - description: 'benchmark latency based on the transmission of 100 packet of 1480 bytes to the OpenFlow controller <CONTROLLER_NAME>'
+          cli: 'ovs-ofctl benchmark <CONTROLLER_NAME> 1480 100'
+          required: ['CONTROLLER_NAME']
+          format: 'txt'
+    - description: 'collect OpenFlow protocol information for <BRIDGE_NAME> bridge, e.g. MAC address table'
+      cli: 'ovs-ofctl show <BRIDGE_NAME>'
+      required: ['BRIDGE_NAME']
+      format: 'txt'
+    - description: 'collect information about the manufacturer of OpenFlow switch for <BRIDGE_NAME> bridge, i.e. vendor and version'
+      cli: 'ovs-ofctl dump-desc <BRIDGE_NAME>'
+      required: ['BRIDGE_NAME']
+      format: 'txt'
+    - description: 'collect fragmentation behaviour of <BRIDGE_NAME> bridge'
+      cli: 'ovs-ofctl get-frags <BRIDGE_NAME>'
+      required: ['BRIDGE_NAME']
+      format: 'txt'
+    - description: 'collect port counters from ports on <BRIDGE_NAME> bridge'
+      cli: 'ovs-ofctl dump-ports <BRIDGE_NAME>'
+      required: ['BRIDGE_NAME']
+      format: 'txt'
+    - description: 'collect port information for the ports on <BRIDGE_NAME> bridge'
+      cli: 'ovs-ofctl dump-ports-desc <BRIDGE_NAME>'
+      required: ['BRIDGE_NAME']
+      format: 'txt'
+    - description: 'collect flow information for <BRIDGE_NAME> bridge'
+      cli: 'ovs-ofctl dump-flows <BRIDGE_NAME>'
+      required: ['BRIDGE_NAME']
+      format: 'txt'
+    - description: 'collect aggregate flow information for <BRIDGE_NAME> bridge'
+      cli: 'ovs-ofctl dump-aggregate <BRIDGE_NAME>'
+      required: ['BRIDGE_NAME']
+      format: 'txt'
+    - description: 'collect information about the the mode of <BRIDGE_NAME> bridge, i.e. fail secure or standalone'
+      cli: 'ovs-vsctl get-fail-mode <BRIDGE_NAME>'
+      required: ['BRIDGE_NAME']
+      format: 'txt'
+      allow_empty_response: yes
+    - description: 'collect information about the Open vSwitch ports on the <BRIDGE_NAME> bridge'
+      cli: 'ovs-vsctl list-ports <BRIDGE_NAME>'
+      required: ['BRIDGE_NAME']
+      format: 'txt'
+    - description: 'collect information about the Open vSwitch interfaces on the <BRIDGE_NAME> bridge'
+      cli: 'ovs-vsctl list-ifaces <BRIDGE_NAME>'
+      required: ['BRIDGE_NAME']
+      format: 'txt'
+- description: 'collect information about all Open vSwitch kernel data paths'
+  os:
+  - generic_linux
+  cli: 'ovs-dpctl dump-dps'
+  tags: ['ovs', 'network', 'test']
+  conditions_match_all:
+  - 'tag:binaries:.*bin/ovs-dpctl$'
+  derivatives:
+  - description: 'Collects Open vSwitch kernel data path information and attached ports'
+    os:
+    - generic_linux
+    regex:
+    - pattern: '^(?P<DATA_PATH_NAME>\S+$)'
+      flags: ['add_cli']
+    actions:
+    - description: 'Collects Open vSwitch kernel data path information and attached port for <DATA_PATH_NAME>'
+      cli: 'ovs-dpctl show <DATA_PATH_NAME>'
+      required: ['DATA_PATH_NAME']
+      format: 'txt'
+    - description: 'Collects Open vSwitch kernel data path flows for <DATA_PATH_NAME>'
+      cli: 'ovs-dpctl dump-flows <DATA_PATH_NAME>'
+      allow_empty_response: yes
+      required: ['DATA_PATH_NAME']
+      format: 'txt'
+- description: 'Collects current logging levels of Open vSwitch components'
+  cli: 'ovs-appctl vlog/list'
+  tags: ['ovs', 'network', 'log', 'test']
+  conditions_match_all:
+  - 'tag:binaries:.*bin/ovs-appctl$'
+  os:
+  - generic_linux
+- description: 'Collects information about Open vSwitch databases'
+  cli: 'ovsdb-client list-dbs'
+  tags: ['ovs', 'network', 'test']
+  conditions_match_all:
+  - 'tag:binaries:.*bin/ovsdb-client$'
+  os:
+  - generic_linux
+  derivatives:
+  - description: 'Collects information about the schema and tables of Open vSwitch databases'
+    os:
+    - generic_linux
+    regex:
+    - pattern: '^(?P<OVS_DB_NAME>\S+$)'
+      flags: ['add_cli']
+    actions:
+    - description: 'Collects the schema of <OVS_DB_NAME> Open vSwitch database'
+      cli: 'ovsdb-client get-schema <OVS_DB_NAME> --pretty'
+      required: ['OVS_DB_NAME']
+      format: 'txt'
+    - description: 'Collects the schema version of <OVS_DB_NAME> Open vSwitch database'
+      cli: 'ovsdb-client get-schema-version <OVS_DB_NAME>'
+      required: ['OVS_DB_NAME']
+      format: 'txt'
+    - description: 'Collects the list of tables of <OVS_DB_NAME> Open vSwitch database'
+      cli: 'ovsdb-client list-tables <OVS_DB_NAME> --no-heading'
+      required: ['OVS_DB_NAME']
+      format: 'txt'
+      derivatives:
+      - description: 'Collects the list of columns of various tables of <OVS_DB_NAME> Open vSwitch database'
+        os:
+        - generic_linux
+        regex:
+        - pattern: '^(?P<OVS_DB_TABLE>\S+$)'
+          flags: ['add_cli']
+        actions:
+        - description: 'Collects the columns of <OVS_DB_TABLE> of <OVS_DB_NAME> Open vSwitch database'
+          cli: 'ovsdb-client list-columns <OVS_DB_NAME> <OVS_DB_TABLE>'
+          required: ['OVS_DB_NAME', 'OVS_DB_TABLE']
+          format: 'txt'
+    - description: 'Collects the dump of the Interface table of <OVS_DB_NAME> Open vSwitch database'
+      cli: 'ovsdb-client dump <OVS_DB_NAME> Interface -f csv'
+      required: ['OVS_DB_NAME']
+      format: 'txt'
+    - description: 'Collects the dump of the Interface table of <OVS_DB_NAME> Open vSwitch database in JSON format'
+      cli: 'ovsdb-client dump <OVS_DB_NAME> Interface -f json --pretty'
+      required: ['OVS_DB_NAME']
+      format: 'txt'
+    - description: 'Collects the dump of the Bridge table of <OVS_DB_NAME> Open vSwitch database'
+      cli: 'ovsdb-client dump <OVS_DB_NAME> Bridge -f json --pretty'
+      required: ['OVS_DB_NAME']
+      format: 'txt'
+    - description: 'Collects the dump of the Controller table of <OVS_DB_NAME> Open vSwitch database'
+      cli: 'ovsdb-client dump <OVS_DB_NAME> Controller -f json --pretty'
+      required: ['OVS_DB_NAME']
+      format: 'txt'
+    - description: 'Collects the dump of the SSL table of <OVS_DB_NAME> Open vSwitch database'
+      cli: 'ovsdb-client dump <OVS_DB_NAME> SSL -f json --pretty'
+      required: ['OVS_DB_NAME']
+      format: 'txt'
+- description: 'Collects Open vSwitch logs'
+  cli: 'ovsdb-tool show-log -mmm | tail -10000'
+  tags: ['ovs', 'network', 'log', 'test']
+  os:
+  - generic_linux
+  conditions_match_all:
+  - 'tag:binaries:.*bin/ovsdb-tool$'
+

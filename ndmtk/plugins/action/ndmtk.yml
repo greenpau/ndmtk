@@ -28,6 +28,16 @@ allowed_os:
   - pattern: 'Free memory:\s+(?P<memory_free>\d+.*)'
 - name: 'cisco_acs'
 - name: 'cisco_asa'
+  facts:
+  - pattern: '(?P<os_vendor>Cisco)\sAdaptive Security Appliance Software Version\s+(?P<os_version_major>\d+)\.(?P<os_version_minor>\w+)'
+    add:
+    - 'os_name=ASA'
+    - 'os_class=cisco_asa'
+  - pattern: '(?P<os_vendor>Cisco)\sAdaptive Security Appliance Software Version\s+(?P<os_version>\S+)'
+  - pattern: 'Device Manager Version\s+(?P<gui_version_major>\d+)\.(?P<gui_version_minor>\w+)'
+  - pattern: 'Hardware:\s+(?P<hardware_platform>\S+)\s'
+  - pattern: '[Ss]erial\s+[Nn]umber:\s+(?P<hardware_serial>\S+)'
+  - pattern: 'System image file is "(?P<os_image_file>\S+)"'
 - name: 'cisco_ios'
 - name: 'cisco_iosxe'
 - name: 'cisco_ironport'
@@ -38,6 +48,15 @@ allowed_os:
 - name: 'junos_qfx'
 - name: 'junos_srx'
 - name: 'generic_linux'
+  facts:
+  - pattern: '^NAME="?(?P<os_name>.*)["]?$'
+    add:
+    - 'os_class=generic_linux'
+    strip_quotes: yes
+  - pattern: '^VERSION_ID="?(?P<os_version>\d+)"?'
+    strip_quotes: yes
+  - pattern: '^ID=(?P<os_subclass>\S+)$'
+    strip_quotes: yes
   set_prompt:
   - 'PS1=ndmtkterminal#'
   exit_sequence:
@@ -108,6 +127,8 @@ output_errors:
 - regex:
   - "[Ii]ncomplete [Cc]ommand"
   msg: "incomplete command"
+  exception:
+  - "\\?$"
 - regex:
   - "[Ii]nvalid [Ii]nput"
   - "[Ii]nvalid [Aa]rgument"
