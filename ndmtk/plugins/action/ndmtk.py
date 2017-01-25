@@ -1671,6 +1671,9 @@ class ActionModule(ActionBase):
             if _os_not_found:
                 continue;
             db = {};
+            if 'facts' in derivative:
+                for fact in derivative['facts']:
+                    db[fact] = derivative['facts'][fact];
             for line in fc:
                 _break = False;
                 flags = [];
@@ -1687,6 +1690,9 @@ class ActionModule(ActionBase):
                             gd = m.groupdict();
                             if 'purge' in p['flags']:
                                 db = {};
+                                if 'facts' in derivative:
+                                    for fact in derivative['facts']:
+                                        db[fact] = derivative['facts'][fact];
                             for k in gd:
                                 db[k] = gd[k];
                     except:
@@ -1780,6 +1786,7 @@ class ActionModule(ActionBase):
                                 cli_entry['mode'] = 'analytics';
                             if 'derivatives' in a:
                                 cli_entry['derivatives'] = a['derivatives'];
+                                cli_entry['derivatives'][0]['facts'] = copy.deepcopy(db);
                             '''
                             TODO: this is a remnant of some other thing. check `preserve`
                             '''
@@ -3076,6 +3083,7 @@ class ActionModule(ActionBase):
             cmd = cmd.replace('_', '_US_');
         cmd = cmd.replace('/', '_FS_').replace('|', '_PIPE_').replace('.', '_DOT_').replace(' ', '.');
         cmd = cmd.replace(':', '_CL_').replace(';', '_SCL_').replace('@', '_ATS_').replace('?', '_QM_');
+        cmd = cmd.replace('"', '_DQ_');
         if host is None or suffix is None:
             return cmd;
         cmd = host + '.' + cmd + '.' + suffix;
