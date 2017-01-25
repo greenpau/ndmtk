@@ -65,6 +65,16 @@ allowed_os:
 - name: 'opengear_linux'
 - name: 'paloalto_panos'
 - name: 'nuage_timos'
+  facts:
+  - pattern: 'System Version\s*:\s*C-(?P<os_version_major>\w+)\.(?P<os_version_minor>\w+)\.(?P<os_version_patch>\w+)'
+  - pattern: 'System Version\s*:\s*C-(?P<os_version>\w+\.\w+\.\w+.*)'
+  - pattern: '^\s*Part\s[Nn]umber\s*:\s*(?P<hardware_serial>\S+)$'
+  - pattern: '^\s*Base MAC address\s*:\s*(?P<hardware_macaddr>\S{17})$'
+  - pattern: 'TiMOS.*\s\w+/(?P<os_arch>\w+)\sNUAGE VSC\sCopyright'
+    add:
+    - 'os_vendor=Nuage'
+    - 'os_name=TiMOS'
+    - 'os_class=nuage_timos'
   disable_paging:
   - 'environment no more'
   exit_sequence:
