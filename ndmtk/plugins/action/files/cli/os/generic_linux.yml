@@ -20,6 +20,27 @@ ndmtk:
   cli: 'find /etc -maxdepth 10 -type f -print | sed "s/\/\//\//"'
   tags: ['ref:conf', 'configuration']
   saveas: '%h.files.etc.txt'
+  derivatives:
+  - os:
+    - generic_linux
+    regex:
+    - pattern: '^\s*(?P<ETC_FILE>\/etc\/rsyslog\S+)\s*$'
+      flags: ['add_cli']
+    actions:
+    - description: 'collect rsyslog configuration file <ETC_FILE>'
+      cli: 'cat <ETC_FILE>'
+      required: ['ETC_FILE']
+      format: 'txt'
+  - os:
+    - generic_linux
+    regex:
+    - pattern: '^\s*(?P<ETC_FILE>\/etc\/logrotate\S+)\s*$'
+      flags: ['add_cli']
+    actions:
+    - description: 'collect logrotate configuration file <ETC_FILE>'
+      cli: 'cat <ETC_FILE>'
+      required: ['ETC_FILE']
+      format: 'txt'
 - description: 'collect the listing of environment variables'
   cli: 'env | sed ""'
   tags: ['ref:environment', 'configuration']
@@ -91,7 +112,7 @@ ndmtk:
   saveas: '%h.arp.txt'
 - description: 'collect kernel network interface statistics'
   cli: 'cat /proc/net/dev'
-  tags: ['network', 'test1']
+  tags: ['network', 'test']
   saveas: '%h.ifstats.txt'
   derivatives:
   - os:

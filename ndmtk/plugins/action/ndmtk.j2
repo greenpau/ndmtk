@@ -660,6 +660,9 @@ while {1} {
             continue;
         }
     }
+    if { $climode == "analytics-append" } {
+        set rwmode "a";
+    }
     set fh [open "$fn" "$rwmode"];
     if { $host_operating_system == "brocade_serveriron" || $host_operating_system == "paloalto_panos" } {
         send -h "\x0d\x0a";
