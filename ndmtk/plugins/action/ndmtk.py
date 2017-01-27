@@ -1354,6 +1354,9 @@ class ActionModule(ActionBase):
         elif item == 'file':
             return self.conf['cliset'][self.conf['cliset_last_eid']]['filename'], nonl;
         elif item == 'mode':
+            if 'append' in self.conf['cliset'][self.conf['cliset_last_eid']]:
+                if self.conf['cliset'][self.conf['cliset_last_eid']]['append'] == True:
+                    return self.conf['cliset'][self.conf['cliset_last_eid']]['mode'] + '-append', nonl;
             return self.conf['cliset'][self.conf['cliset_last_eid']]['mode'], nonl;
         else:
             pass;
@@ -1651,7 +1654,9 @@ class ActionModule(ActionBase):
             return;
         tags = [];
         if 'tags' in self.conf['cliset'][cli_id]:
-            tags.extend(self.conf['cliset'][cli_id]['tags'])
+            for t in self.conf['cliset'][cli_id]['tags']:
+                if t not in ['ref:conf', 'configuration', 'conf']:
+                    tags.append(t);
         fc = None;
         lines = [];
         with open(fn) as f:
@@ -1734,7 +1739,6 @@ class ActionModule(ActionBase):
                             i += 1;
                             for r in a['required']:
                                 c = c.replace("<" + r + ">", str(db[r]));
-                            display.display('<' + self.info['host'] + '> added derivative command to queue: ' + c, color='green');
                             cli_entry = {
                                 'cli': c,
                                 'source': 'derivative',
@@ -1758,7 +1762,8 @@ class ActionModule(ActionBase):
                             else:
                                 cli_entry['format'] = 'txt';
                             if 'saveas' in a:
-                                _saveas = self._normalize_str(str(a['saveas']));
+                                #_saveas = self._normalize_str(str(a['saveas']));
+                                _saveas = str(a['saveas']);
                                 cli_entry['saveas'] = self._decode_ref(_saveas);
                                 cli_entry['filename'] = os.path.basename(cli_entry['saveas']);
                                 for k in db:
@@ -1807,6 +1812,14 @@ class ActionModule(ActionBase):
                                     pass;
                             else:
                                 cli_entry['tags'] = tags;
+                            if self.conf['allowed_sections'] is not None:
+                                _is_not_allowed = True;
+                                for s in self.conf['allowed_sections']:
+                                    if s in cli_entry['tags']:
+                                        _is_not_allowed = False
+                                if _is_not_allowed:
+                                    continue;
+                            display.display('<' + self.info['host'] + '> added derivative command to queue: ' + c, color='green');
                             self.conf['cliset_last_id'] += 1;
                             self.conf['cliset'][self.conf['cliset_last_id']] = cli_entry;
                             if 'child_cli_id' not in self.conf['cliset'][cli_id]:
@@ -2326,6 +2339,7 @@ class ActionModule(ActionBase):
           * `configure`
           * `pre`
           * `post`
+          * `analytics-append`
         '''
         if not os.path.exists(fn):
             return False;
@@ -3026,6 +3040,7 @@ class ActionModule(ActionBase):
             There were no commands found for this hosts. Nothing to commit.
             '''
             return;
+        unique_files = [];
         for _id in self.conf['cliset']:
             if 'path' not in self.conf['cliset'][_id]:
                 continue;
@@ -3047,6 +3062,10 @@ class ActionModule(ActionBase):
                             self.conf['cliset'][_id]['sha1_pre'] = self._get_sha1_hash(fn);
                             if self.conf['cliset'][_id]['sha1_pre'] != self.conf['cliset'][_id]['sha1']:
                                 self.info['changed'] = True;
+            if fn in unique_files:
+                continue;
+            else:
+                unique_files.append(fn);
             try:
                 fc = None;
                 with open(self.conf['cliset'][_id]['path'], 'r') as f:
