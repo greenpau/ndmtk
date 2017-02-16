@@ -1101,7 +1101,7 @@ class ActionModule(ActionBase):
                                 exc_type, exc_value, exc_traceback = sys.exc_info();
                                 self.errors.extend(traceback.format_exception(exc_type, exc_value, exc_traceback)); 
                                 break;
-                        elif re.search('(climode|cliexit):', remote_session_stdin):
+                        elif re.search('(climode|cliexit|clitimeout):', remote_session_stdin):
                             '''
                             A command may be for analytics purposes, e.g. `show ip route`, or it
                             may be a part of a deployment job. If it is a deployment job, any error
@@ -1110,6 +1110,10 @@ class ActionModule(ActionBase):
                             request = 'mode';
                             if re.search('cliexit', remote_session_stdin):
                                 request = 'exit';
+                            elif re.search('clitimeout', remote_session_stdin):
+                                request = 'timeout';
+                            else:
+                                pass
                             display.vvv('prompted for cli ' + request, host=self.info['host']);
                             _prompted = True;
                             response, nonl = self._get_cli_task(request);
@@ -1222,6 +1226,8 @@ class ActionModule(ActionBase):
             return 'abort', nonl;
 
         for i in ['paging', 'scripting', 'prompt']:
+            if item == 'timeout':
+                break;
             if i + '_mode' not in self.status:
                 continue;
             if self.status[i + '_mode'] != 'enabled':
@@ -1353,6 +1359,11 @@ class ActionModule(ActionBase):
             return self.conf['cliset'][self.conf['cliset_last_eid']]['cli'], nonl;
         elif item == 'file':
             return self.conf['cliset'][self.conf['cliset_last_eid']]['filename'], nonl;
+        elif item == 'timeout':
+            if 'timeout' in self.conf['cliset'][self.conf['cliset_last_eid']]:
+                return str(self.conf['cliset'][self.conf['cliset_last_eid']]['timeout']), nonl;
+            else:
+                return str(self.info['timeout']), nonl;
         elif item == 'mode':
             if 'append' in self.conf['cliset'][self.conf['cliset_last_eid']]:
                 if self.conf['cliset'][self.conf['cliset_last_eid']]['append'] == True:
@@ -2056,6 +2067,8 @@ class ActionModule(ActionBase):
             for k in ['success_if', 'success_if_all', 'error_if', 'error_if_all']:
                 if k not in _status_db:
                     continue;
+                #display.v('condition: ' + k, host=self.info['host']);
+                #display.v('status_db: ' + str(_status_db), host=self.info['host']);
                 _is_match_partial = False;
                 _is_match_full = True;
                 for i in _status_db[k]:
@@ -2063,6 +2076,8 @@ class ActionModule(ActionBase):
                         _is_match_partial = True;
                     else:
                         _is_match_full = False;
+                #display.v('_is_match_full: ' + str(_is_match_full), host=self.info['host']);
+                #display.v('_is_match_partial: ' + str(_is_match_partial), host=self.info['host']);
                 if (k == 'success_if' and _is_match_partial) or (k == 'success_if_all' and _is_match_full):
                     self.conf['cliset'][cli_id]['status'] = 'ok';
                     return False;
@@ -2074,6 +2089,9 @@ class ActionModule(ActionBase):
                         self.conf['cliset'][cli_id]['system_err'] = [];
                     self.conf['cliset'][cli_id]['system_err'].extend(lines);
                     return True;
+                elif (k == 'error_if' and not _is_match_partial and not _is_match_full) or (k == 'error_if_all' and not _is_match_full):
+                    self.conf['cliset'][cli_id]['status'] = 'ok';
+                    return False;
                 else:
                     pass;
         else:
@@ -2379,6 +2397,7 @@ class ActionModule(ActionBase):
                 'conditions_match_any', 'conditions_match_all', 'conditions_match_all_nolimit',
                 'derivatives', 'preserve', 'description', 'allow_empty_response', 'conditions_precedent_all',
                 'os', 'no_newline', 'error_if_all', 'error_if', 'success_if_all', 'success_if',
+                'timeout',
             ];
             for k in required_keys:
                 if k not in entry:
@@ -2602,7 +2621,7 @@ class ActionModule(ActionBase):
                         c['filename'] = 'response.' + str(self.conf['cliset_last_id']) + '.txt';
                     else:
                         c['filename'] = self._normalize_str(entry_task, self.info['host'], c['format']);
-                for j in ['preserve', 'description', 'allow_empty_response', 'derivatives', 'no_newline', 'error_if_all', 'error_if', 'success_if_all', 'success_if']:
+                for j in ['preserve', 'description', 'allow_empty_response', 'derivatives', 'no_newline', 'error_if_all', 'error_if', 'success_if_all', 'success_if', 'timeout']:
                     if j in entry:
                         c[j] = entry[j];
                 '''
@@ -3102,7 +3121,7 @@ class ActionModule(ActionBase):
             cmd = cmd.replace('_', '_US_');
         cmd = cmd.replace('/', '_FS_').replace('|', '_PIPE_').replace('.', '_DOT_').replace(' ', '.');
         cmd = cmd.replace(':', '_CL_').replace(';', '_SCL_').replace('@', '_ATS_').replace('?', '_QM_');
-        cmd = cmd.replace('"', '_DQ_');
+        cmd = cmd.replace('"', '_DQ_').replace('$', '_DLR_');
         if host is None or suffix is None:
             return cmd;
         cmd = host + '.' + cmd + '.' + suffix;

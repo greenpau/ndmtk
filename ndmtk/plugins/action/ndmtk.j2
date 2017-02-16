@@ -568,6 +568,9 @@ while {1} {
         set clifile [lindex $req 0];
         set req [get_cli_task "climode"];
         set climode [lindex $req 0];
+        set req [get_cli_task "clitimeout"];
+        set clitimeout [lindex $req 0];
+        set timeout $clitimeout;
         if { $clifile == "abort" || $climode == "abort" } {
             set clitask "abort";
         }

@@ -39,6 +39,7 @@ ndmtk:
 - cli: 'show ip arp vrf all'
 - cli: 'show clock'
 - cli: 'show ip route vrf all'
+- cli: 'show ip route detail vrf all'
 - cli: 'show ntp peer-status'
   conditions_match_any:
   - '^ntp server'

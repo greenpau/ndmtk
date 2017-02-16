@@ -16,6 +16,10 @@ ndmtk:
   tags: ['routing', 'bgp']
   conditions_match_any:
   - '^router bgp '
+- cli: 'show ip bgp detail vrf all'
+  tags: ['routing', 'bgp']
+  conditions_match_any:
+  - '^router bgp '
 - cli: 'show ip bgp neighbors vrf all'
   tags: ['routing', 'bgp']
   conditions_match_any:
