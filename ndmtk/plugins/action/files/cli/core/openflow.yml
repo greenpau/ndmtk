@@ -23,7 +23,7 @@ ndmtk:
   tags: ['ovs', 'network']
   saveas: '%h.ovs.database.txt'
   conditions_match_all:
-  - 'tag:binaries:.*bin/ovs-ofctl$'
+  - 'tag:binaries:.*bin/ovs-vsctl$'
 - description: 'collect information about Open vSwitch bridges'
   os:
   - generic_linux
@@ -169,6 +169,7 @@ ndmtk:
           cli: 'ovsdb-client list-columns <OVS_DB_NAME> <OVS_DB_TABLE>'
           required: ['OVS_DB_NAME', 'OVS_DB_TABLE']
           format: 'txt'
+          tags: ['tech-support']
     - description: 'Collects the dump of the Interface table of <OVS_DB_NAME> Open vSwitch database'
       cli: 'ovsdb-client dump <OVS_DB_NAME> Interface -f csv'
       required: ['OVS_DB_NAME']
