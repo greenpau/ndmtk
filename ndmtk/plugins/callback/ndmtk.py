@@ -23,6 +23,7 @@ import uuid;
 import re;
 import pprint;
 import traceback;
+import time;
 from ansible.parsing import vault;
 from ansible.parsing.yaml.loader import AnsibleLoader
 
@@ -61,6 +62,7 @@ class CallbackModule(CallbackBase):
         _tasks_list = play.get_tasks();
         _nodes = [];
         _secrets = [];
+        #self._ndmtk_debug = True;
         if isinstance(_tasks_list, list):
             for _task_list in _tasks_list:
                 if not isinstance(_task_list, list):
@@ -112,6 +114,7 @@ class CallbackModule(CallbackBase):
                 raise AnsibleError("failed to determine user's home directory");
             self._ndmtk_play_uuid = str(uuid.uuid1());
             self._ndmtk_user_home = _user_home;
+            self._ndmtk_dirs = [];
             '''
             Retrieve authentication credentials.
             '''
@@ -125,19 +128,27 @@ class CallbackModule(CallbackBase):
                     _play_tmpdir = os.path.join(self._ndmtk_user_home, '.ansible', 'tmp', 'ndmtk', str(self._ndmtk_play_uuid));
                     display.display('temporary playbook directory: "' + _play_tmpdir + '" directory', color='yellow');
                     display.display("play data:\n" + pprint.pformat(_play_data, indent=4), color='yellow');
+            _play_tmpdir = os.path.join(self._ndmtk_user_home, '.ansible', 'tmp', 'ndmtk', str(self._ndmtk_play_uuid));
+            display.display('<ndmtk> temporary directory: "' + _play_tmpdir + '" directory', color='green');
         pass;
 
     def playbook_on_task_start(self, name, conditional):
         pass;
 
     def v2_playbook_on_task_start(self, task, is_conditional):
-        
         if hasattr(self, '_ndmtk_play_uuid'):
             task.args['play_uuid'] =  str(self._ndmtk_play_uuid);
             task.args['task_uuid'] = str(uuid.uuid1());
             if hasattr(self, '_ndmtk_secrets'):
                 task.args['credentials'] = self._ndmtk_secrets;
             _task_tmpdir = os.path.join(self._ndmtk_user_home, '.ansible', 'tmp', 'ndmtk', task.args['play_uuid'], task.args['task_uuid']);
+            _task_data = task.serialize();
+            if 'args' in _task_data:
+                for i in ['output', 'output_dir']:
+                    if i in _task_data['args']:
+                        self._ndmtk_output_dir = self._decode_ref(_task_data['args'][i], task.args['play_uuid'], task.args['task_uuid']);
+                        task.args[i] = str(self._ndmtk_output_dir);
+                        break;
             if hasattr(self, '_ndmtk_debug'):
                 if self._ndmtk_debug:
                     display.display('temporary task directory: "' + _task_tmpdir + '" directory', color='yellow');
@@ -159,3 +170,41 @@ class CallbackModule(CallbackBase):
             except Exception as e:
                 display.display('[ERROR] ' + str(e), color='red');
         return dict();
+
+    def v2_playbook_on_stats(self, stats):
+        ''' Display info about playbook statistics '''
+        if hasattr(self, '_ndmtk_output_dir'):
+            display.display('<ndmtk> output directory: ' + self._ndmtk_output_dir, color='green');
+
+    def _decode_ref(self, s, play_uuid, task_uuid):
+        '''
+        This function translates references to special codes in string variables:
+        - `%p`: Task UUID
+        - `%P`: Playbook UUID
+        - `%h`: Hostname
+        - `%F`: FQDN
+        - `%Y`: Year with century as a decimal number
+        - `%m`: Month as a zero-padded decimal number
+        - `%d`: Day of the month as a zero-padded decimal number
+        - `%H`: Hour (24-hour clock) as a zero-padded decimal number
+        - `%M`: Minute as a zero-padded decimal number
+        - `%S`: Second as a zero-padded decimal number
+        - `%E`: Epoch
+        '''
+        epoch = time.time();
+        ts = time.gmtime(epoch);
+        self.refs = {
+            'P': play_uuid,
+            'p': task_uuid,
+            'U': os.path.split(os.path.expanduser('~'))[-1],
+            'Y': str(ts.tm_year).zfill(4),
+            'm': str(ts.tm_mon).zfill(2),
+            'd': str(ts.tm_mday).zfill(2),
+            'H': str(ts.tm_hour).zfill(2),
+            'M': str(ts.tm_min).zfill(2),
+            'S': str(ts.tm_sec).zfill(2),
+            'E': str(int(epoch)),
+        };
+        for i in self.refs:
+            s = s.replace('%' + i, self.refs[i]);
+        return s;
