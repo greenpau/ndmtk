@@ -54,6 +54,8 @@ set prompt_optional_end "{{ optional_prompt_end }}";
 
 set env(TERM) vt100;
 
+set terminal_width [stty columns];
+
 set session_pid 1111111;
 
 log_file "{{ dbg_file_name }}";
@@ -62,6 +64,12 @@ log_user 0;
 set session_log [open "$session_log_file" "a"];
 set session_connect [open "$session_connect_log_file" "a"];
 
+proc ctrl_exit {code} {
+    global terminal_width;
+    stty columns $terminal_width;
+    exit $code;
+}
+
 proc session_terminate_handler {} {
     global session_log;
     global session_pid;
@@ -69,16 +77,15 @@ proc session_terminate_handler {} {
     global ERROR_TERMINATED_NO_SPAWN;
     if {$session_pid == 1111111} {
         puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='received term/int signal but no spawned processes found' rc=$ERROR_TERMINATED_NO_SPAWN";
-        exit $ERROR_TERMINATED_NO_SPAWN;
+        ctrl_exit $ERROR_TERMINATED_NO_SPAWN;
     } else {
         close $session_pid;
         puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='received term/int signal and closed PID $session_pid' rc=0";
-        exit 0;
+        ctrl_exit 0;
     }
 }
 
 trap session_terminate_handler {SIGINT SIGTERM};
-
 
 proc log_commit {} {
     global session_log;
@@ -107,7 +114,7 @@ proc send_status {status} {
         puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='$err'";
         puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='failed to send $status request, because manager closed pipe prematurely' rc=$ERROR_REPORT_STATUS";
         log_commit;
-        exit $ERROR_REPORT_STATUS;
+        ctrl_exit $ERROR_REPORT_STATUS;
     }
     expect_user {
         -re "ok\n" {
@@ -115,7 +122,7 @@ proc send_status {status} {
         }
         default {
             puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='failed to communicate status: $status' rc=$ERROR_REPORT_STATUS";
-            exit $ERROR_REPORT_STATUS;
+            ctrl_exit $ERROR_REPORT_STATUS;
         }
     }
     set expect_out(buffer) {};
@@ -134,7 +141,7 @@ proc get_credentials {tp} {
     if {[catch {puts stdout "$tp:";} err]} {
         puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='$err'";
         puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='failed to send $tp request, because manager closed pipe prematurely' rc=$ERROR_INPUT_CREDENTIALS";
-        exit $ERROR_INPUT_CREDENTIALS;
+        ctrl_exit $ERROR_INPUT_CREDENTIALS;
     }
     expect_user {
         -re "(.*)\n" {
@@ -151,21 +158,21 @@ proc get_credentials {tp} {
                 }
                 default {
                     puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='user failed to provide: $tp' rc=$ERROR_INPUT_CREDENTIALS";
-                    exit $ERROR_INPUT_CREDENTIALS;
+                    ctrl_exit $ERROR_INPUT_CREDENTIALS;
                 }
             }
         }
         timeout {
             puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='user failed to provide: $tp' rc=$ERROR_INPUT_CREDENTIALS";
-            exit $ERROR_INPUT_CREDENTIALS;
+            ctrl_exit $ERROR_INPUT_CREDENTIALS;
         }
         eof {
             puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='user failed to provide: $tp' rc=$ERROR_INPUT_CREDENTIALS";
-            exit $ERROR_INPUT_CREDENTIALS;
+            ctrl_exit $ERROR_INPUT_CREDENTIALS;
         }
         default {
             puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='user failed to provide: $tp' rc=$ERROR_INPUT_CREDENTIALS";
-            exit $ERROR_INPUT_CREDENTIALS;
+            ctrl_exit $ERROR_INPUT_CREDENTIALS;
         }
     }
     set expect_out(buffer) {};
@@ -200,7 +207,7 @@ proc get_cli_task {item} {
         }
         default {
             puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='user failed to provide $item' rc=$ERROR_INPUT_TASK";
-            exit $ERROR_INPUT_TASK;
+            ctrl_exit $ERROR_INPUT_TASK;
         }
     }
     set expect_out(buffer) {};
@@ -300,13 +307,13 @@ set sysname [info hostname];
 puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='cli: $connection_string'";
 
 log_commit;
-
+set stty_init "cols 1000";
 spawn {{ connection_string }};
 set connection_spid "$spawn_id";
 puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' spawn_id='$connection_spid'";
-
-match_max -d 60000;
+match_max -d 600000;
 set session_pid [exp_pid];
+puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' terminal_width='$terminal_width'";
 
 puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='pid: $session_pid'";
 
@@ -316,7 +323,7 @@ if { [ catch {
     puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='$err'";
     puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='failed to send spawned status, because manager closed pipe prematurely' rc=$ERROR_TERMINATED_NO_SPAWN";
     log_commit;
-    exit $ERROR_TERMINATED_NO_SPAWN;
+    ctrl_exit $ERROR_TERMINATED_NO_SPAWN;
 }
 
 puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='spawned status message was sent successfully'";
@@ -327,7 +334,7 @@ while 1 {
     incr loop_counter;
     if { $loop_counter > 250 } {
         send_status "connected:no";
-        exit $ERROR_CONNECTION_TIMEOUT;
+        ctrl_exit $ERROR_CONNECTION_TIMEOUT;
     }
     expect {
         timeout {
@@ -339,7 +346,7 @@ while 1 {
                 send_status "connected:no";
             }
             log_commit;
-            exit $ERROR_CONNECTION_TIMEOUT;
+            ctrl_exit $ERROR_CONNECTION_TIMEOUT;
         }
         eof {
             puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' rc=$ERROR_CONNECTION_FAILED msg='failed to connect'";
@@ -350,7 +357,7 @@ while 1 {
                 send_status "connected:no";
             }
             log_commit;
-            exit $ERROR_CONNECTION_FAILED;
+            ctrl_exit $ERROR_CONNECTION_FAILED;
         }
         "usage: ssh.*" {
             puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' rc=$ERROR_CONNECTION_FAILED msg='invalid ssh usage'";
@@ -361,7 +368,7 @@ while 1 {
                 send_status "connected:no";
             }
             log_commit;
-            exit $ERROR_CONNECTION_FAILED;
+            ctrl_exit $ERROR_CONNECTION_FAILED;
         }
         -re "key fingerprint.*want to continue connecting.*" {
             incr session_connected;
@@ -372,7 +379,7 @@ while 1 {
             send_status "connected:yes";
             send_status "ssh_error:yes";
             log_commit;
-            exit $ERROR_UNKNOWN_SSH_FINGERPRINT;
+            ctrl_exit $ERROR_UNKNOWN_SSH_FINGERPRINT;
         }
         "Name or service not known.*" {
             puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' rc=$ERROR_DNS_RESOLUTION_FAILED msg='failed to connect due to failed dns resolution'";
@@ -384,7 +391,7 @@ while 1 {
             }
             send_status "dns_error:yes";
             log_commit;
-            exit $ERROR_DNS_RESOLUTION_FAILED;
+            ctrl_exit $ERROR_DNS_RESOLUTION_FAILED;
         }
         -re "\r\n|\n|\r" {
             set cli_output [parse_cli "$expect_out(buffer)"];
@@ -430,7 +437,7 @@ while 1 {
                     puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' rc=$ERROR_AUTHENTICATION_FAILED msg='Privileged EXEC mode authentication failed'";
                     send_status "authorized:no";
                     log_commit;
-                    exit $ERROR_AUTHENTICATION_FAILED;
+                    ctrl_exit $ERROR_AUTHENTICATION_FAILED;
                 }
                 puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='prompted for Privileged EXEC mode password'";
                 get_credentials "password_enable";
@@ -441,7 +448,7 @@ while 1 {
                     puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' rc=$ERROR_AUTHENTICATION_FAILED msg='authentication failed'";
                     send_status "authenticated:no";
                     log_commit;
-                    exit $ERROR_AUTHENTICATION_FAILED;
+                    ctrl_exit $ERROR_AUTHENTICATION_FAILED;
                 }
                 puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='connected, detected password prompt'";
                 get_credentials "password";
@@ -568,9 +575,11 @@ while {1} {
         set clifile [lindex $req 0];
         set req [get_cli_task "climode"];
         set climode [lindex $req 0];
-        set req [get_cli_task "clitimeout"];
-        set clitimeout [lindex $req 0];
-        set timeout $clitimeout;
+        if { $climode != "paging" && $climode != "scripting" } {
+            set req [get_cli_task "clitimeout"];
+            set clitimeout [lindex $req 0];
+            set timeout $clitimeout;
+        }
         if { $clifile == "abort" || $climode == "abort" } {
             set clitask "abort";
         }
@@ -675,6 +684,7 @@ while {1} {
     } else {
         send -h "$clitask\n";
     }
+
     if { $host_operating_system == "generic_linux" || $host_operating_system == "opengear_linux" } {
         expect -re "\r\n|\n|\r";
         expect -re $;
@@ -775,4 +785,5 @@ while {1} {
 }
 
 puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='finished command batch execution' rc=0";
+ctrl_exit 0;
 exit 0;

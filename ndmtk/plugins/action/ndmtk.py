@@ -311,20 +311,7 @@ class ActionModule(ActionBase):
         self.info = dict();
         self.status = dict();
         self.refdb = OrderedDict();
-        epoch = time.time();
-        ts = time.gmtime(epoch);
-        self.refs = OrderedDict({
-            'h': 'hostname',
-            'p': 'unique_process_id',
-            'U': os.path.split(os.path.expanduser('~'))[-1],
-            'Y': str(ts.tm_year).zfill(4),
-            'm': str(ts.tm_mon).zfill(2),
-            'd': str(ts.tm_mday).zfill(2),
-            'H': str(ts.tm_hour).zfill(2),
-            'M': str(ts.tm_min).zfill(2),
-            'S': str(ts.tm_sec).zfill(2),
-            'E': str(int(epoch)),
-        });
+        self.refs = {};
         self.conf['time_start'] = int(round(time.time() * 1000));
         self.status['return_code'] = 0;
         self.status['return_status'] = 'pending';
@@ -335,12 +322,6 @@ class ActionModule(ActionBase):
             task_vars = dict();
 
         result = super(ActionModule, self).run(tmp, task_vars);
-
-        self.conf['output_dir'] = self._task.args.get('output_dir', None);
-        if self.conf['output_dir'] is None:
-            self.conf['output_dir'] = self._task.args.get('output', None);
-        if self.conf['output_dir'] is not None:
-            self.conf['output_dir'] = self._decode_ref(self.conf['output_dir']);
 
         for p in ['debug', 'show_tech', 'show_expect']:
             if p in ['show_expect']:
@@ -377,6 +358,24 @@ class ActionModule(ActionBase):
 
         self.conf['play_uuid'] = self._task.args.get('play_uuid', str(uuid.uuid1()));
         self.conf['task_uuid'] = self._task.args.get('task_uuid', str(uuid.uuid1()));
+
+        '''
+        Define output directory.
+        '''
+        self.refs['h'] = self.info['host'];
+        self.refs['P'] = self.conf['play_uuid'];
+        self.refs['p'] = self.conf['task_uuid'];
+        self.info['fqdn'] = task_vars.get('inventory_hostname', None);
+        if self.info['fqdn']:
+            self.refs['F'] = self.info['fqdn'];
+        else:
+            self.refs['F'] = '';
+
+        self.conf['output_dir'] = self._task.args.get('output_dir', None);
+        if self.conf['output_dir'] is None:
+            self.conf['output_dir'] = self._task.args.get('output', None);
+        if self.conf['output_dir'] is not None:
+            self.conf['output_dir'] = self._decode_ref(self.conf['output_dir']);
 
         '''
         Create a temporary directory for command-line output.
@@ -420,7 +419,7 @@ class ActionModule(ActionBase):
         self.refs['P'] = self.conf['play_uuid'];
         self.refs['p'] = self.conf['task_uuid'];
         self.info['fqdn'] = task_vars.get('inventory_hostname', None);
-        self.refs['H'] = self.info['fqdn']; 
+        self.refs['F'] = self.info['fqdn']; 
         self.info['hostname'] = task_vars.get('inventory_hostname_short', None);
         for i in ['os', 'host_overwrite', 'host_port', 'host_protocol', 'jumphosts', 'timeout']:
             self.info[i] = task_vars.get(self.plugin_name + '_' + i, None);
@@ -2184,7 +2183,7 @@ class ActionModule(ActionBase):
         - `%p`: Task UUID
         - `%P`: Playbook UUID
         - `%h`: Hostname
-        - `%H`: FQDN
+        - `%F`: FQDN
         - `%Y`: Year with century as a decimal number
         - `%m`: Month as a zero-padded decimal number
         - `%d`: Day of the month as a zero-padded decimal number

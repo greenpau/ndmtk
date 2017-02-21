@@ -30,7 +30,7 @@ import stat;
 import unittest;
 
 pkg_name = 'ndmtk';
-pkg_ver = '0.1.5';
+pkg_ver = '0.1.6';
 
 cmdclass = {};
 
@@ -220,7 +220,7 @@ pkg_data=[
 ];
 pkg_platforms='any';
 pkg_classifiers=[
-    'Development Status :: 4 - Beta',
+    'Development Status :: 5 - Production/Stable',
     'Environment :: Console',
     'Intended Audience :: Information Technology',
     'Intended Audience :: System Administrators',
