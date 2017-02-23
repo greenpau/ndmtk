@@ -410,7 +410,23 @@ ndmtk:
   tags: ['management', 'snmp']
   conditions_match_any:
   - '^snmp-server host'
+- description: 'Collect SNMP ifIndex numbers of interface'  
+  cli: 'show snmp mib walk ifDescr'
+  tags: ['management', 'snmp']
+  conditions_match_any:
+  - '^snmp-server'
 
 - cli: 'show logging | head -250'
   tags: ['management', 'logging']
   saveas: '%h.show.logging.txt'
+
+- description: 'Collect sFlow configuration'
+  cli: 'show sflow detail'
+  tags: ['management', 'sflow']
+  conditions_match_any:
+  - '^sflow run'
+- description: 'Collect sFlow interfaces'
+  cli: 'show sflow interfaces'
+  tags: ['management', 'sflow']
+  conditions_match_any:
+  - '^sflow run'

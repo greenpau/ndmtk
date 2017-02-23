@@ -214,8 +214,8 @@ ndmtk:
   tags: ['vxlan']
   conditions_match_any:
   - '^interface nve'
-- description: 'Displays VXLAN interface status.'
-  cli: 'show vxlan interface'
+- description: 'Displays VXLAN VNI to VLAN mapping'
+  cli: 'show vxlan'
   tags: ['vxlan']
   conditions_match_all:
   - '.*l2vpn evpn'
@@ -315,24 +315,24 @@ ndmtk:
 # TODO: detect when to perform checks for fex interfaces
 - description: 'Collects the status of consistency checks for L2'
   cli: 'show consistency-checker l2 module 1'
-  tags: ['fib']
+  tags: ['fib', 'tech-support']
 - description: 'Collects the status of consistency checks for L3'
   cli: 'show consistency-checker l3 module 1'
-  tags: ['fib']
+  tags: ['fib', 'tech-support']
 - description: 'Collects the status of consistency checks for link state'
   cli: 'show consistency-checker link-state module 1'
-  tags: ['fib']
+  tags: ['fib', 'tech-support']
 
 # TODO: dynamic checks for VLANs
 # and port channels: show consistency-checker membership port-channels interface port-channel
 # show consistency-checker stp-state vlan 1
 - description: 'Collects the status of consistency checks for VLAN membership'
   cli: 'show consistency-checker membership vlan 1'
-  tags: ['fib']
+  tags: ['fib', 'tech-support']
 
 - description: 'Collects the status of consistency checks for CoPP'
   cli: 'show consistency-checker copp'
-  tags: ['fib']
+  tags: ['fib', 'tech-support']
   conditions_precedent_all:
   - 'os_class eq cisco_nxos'
   - 'os_version_major ge 7'
@@ -342,3 +342,46 @@ ndmtk:
   tags: ['fib', 'vxlan']
   conditions_match_any:
   - '^interface nve'
+
+
+- description: 'Collect SNMP status'
+  cli: 'show snmp'
+  tags: ['management', 'snmp']
+  conditions_match_any:
+  - '^snmp-server'
+- description: 'Collect SNMP community strings'
+  cli: 'show snmp community'
+  tags: ['management', 'snmp']
+  conditions_match_any:
+  - '^snmp-server'
+- description: 'Collect SNMP engineID'
+  cli: 'show snmp engineID'
+  tags: ['management', 'snmp']
+  conditions_match_any:
+  - '^snmp-server'
+- description: 'Collect SNMP roles'
+  cli: 'show snmp group'
+  tags: ['management', 'snmp']
+  conditions_match_any:
+  - '^snmp-server'
+- description: 'Collect SNMP sessions'
+  cli: 'show snmp sessions'
+  tags: ['management', 'snmp']
+  conditions_match_any:
+  - '^snmp-server'
+  allow_empty_response: yes
+- description: 'Collect SNMP notifications enabled or disabled'
+  cli: 'show snmp trap'
+  tags: ['management', 'snmp']
+  conditions_match_any:
+  - '^snmp-server'
+- description: 'Collect SNMP users'
+  cli: 'show snmp user'
+  tags: ['management', 'snmp']
+  conditions_match_any:
+  - '^snmp-server'
+- description: 'Collect SNMP ifIndex numbers of interface'  
+  cli: 'show interface snmp-ifindex'
+  tags: ['management', 'snmp']
+  conditions_match_any:
+  - '^snmp-server'
