@@ -137,6 +137,7 @@ proc get_credentials {tp} {
     global ERROR_INPUT_CREDENTIALS;
     global session_log;
     global transaction_id;
+    set response "UKNOWN";
 
     if {[catch {puts stdout "$tp:";} err]} {
         puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='$err'";
@@ -148,13 +149,16 @@ proc get_credentials {tp} {
             switch -glob -- $tp {
                 "username" {
                     set username $expect_out(1,string);
+                    set response $username;
                     puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='user sent username: $username'";
                 }
                 "password" {
                     set password $expect_out(1,string);
+                    set response $password;
                 }
                 "password_enable" {
                     set password_enable $expect_out(1,string);
+                    set response $password_enable;
                 }
                 default {
                     puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='user failed to provide: $tp' rc=$ERROR_INPUT_CREDENTIALS";
@@ -174,6 +178,10 @@ proc get_credentials {tp} {
             puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='user failed to provide: $tp' rc=$ERROR_INPUT_CREDENTIALS";
             ctrl_exit $ERROR_INPUT_CREDENTIALS;
         }
+    }
+    if { $response == "INTERNAL_ERROR" } {
+        puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='internal error when polling for user credentials: $tp' rc=$ERROR_INPUT_CREDENTIALS";
+        ctrl_exit $ERROR_INPUT_CREDENTIALS;
     }
     set expect_out(buffer) {};
     expect *;

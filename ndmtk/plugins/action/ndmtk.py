@@ -544,18 +544,15 @@ class ActionModule(ActionBase):
             else:
                 raise AnsibleError(self.plugin_name + ' failed to locate access credentials for remote devices');
         else:
-            credentials = self._load_credentials(credentials);
+            self.keystore = self._load_credentials(credentials);
             if self.errors:
                 return dict(msg='\n'.join(self.errors), log_dir=self.conf['temp_dir'], failed=True);
             j = 0;
-            for c in credentials:
+            for c in self.keystore:
                 for k in c:
                     if k not in ['password', 'password_enable']:
                         display.vvv('credentials (' + str(j)  + '): ' + str(k) + ': ' + str(c[k]), host=self.info['host']);
                 j += 1;
-            primary_credentials = credentials.pop(0);
-            for c in ['username', 'password', 'password_enable']:
-                self.conf[c] = primary_credentials[c];
 
         '''
         Create network connection string via either ssh or telnet.
@@ -566,7 +563,21 @@ class ActionModule(ActionBase):
         display.vvv('host information:\n' + json.dumps(self.info, indent=4, sort_keys=True), host=self.info['host']);
         display.vvv('plugin configuration:\n' + json.dumps(self.conf, indent=4, sort_keys=True), host=self.info['host']);
 
+        display.vv('keystore:\n' + pprint.pformat(self.keystore), host=self.info['host']);
+        display.vv('activekey:\n' + pprint.pformat(self.activekey), host=self.info['host']);
+
+        '''
+        Check whether there is a valid password in the active credentials set.
+        '''
+        _keystore_item, _keystore_error = self._get_item_from_key('password', check_mode=True);
+        if _keystore_error:
+            if _keystore_error in ['PIN_NOT_FOUND', 'TOKEN_NOT_FOUND', 'TOKEN_FILE_NOT_FOUND'] or re.match('NO_', _keystore_error):
+                raise AnsibleError(_keystore_error);
+
         if self.errors or self.conf['cliset_last_id'] == 0:
+            '''
+            Triggered when any of the previous steps produced an error ir cli set is empty.
+            '''
             self.status['return_code'] = 1;
             self.status['return_status'] = 'failed';
             self.status['skipped'] = 'yes';
@@ -646,12 +657,61 @@ class ActionModule(ActionBase):
         return;
 
 
-    def _get_ssh_connectivity_details(self, host):
+    def _get_item_from_key(self, item, check_mode=False):
+        attempts = 0;
+        token_wait_time = 6;
+        if item in self.activekey:
+            value = str(self.activekey[item]);
+            if value == 'pin,token':
+                if not check_mode:
+                    display.display('<' + self.info['host'] + '> requires One-Time-Password (OTP)', color='green');
+                while True:
+                    if 'pin' not in self.activekey:
+                        return None, "PIN_NOT_FOUND";
+                    if 'token' not in self.activekey:
+                        return None, "TOKEN_NOT_FOUND";
+                    token = None;
+                    try:
+                        with open(os.path.expanduser(self.activekey['token']),'r') as f:
+                            token = f.readlines();
+                    except:
+                        return None, "TOKEN_FILE_NOT_FOUND";
+                    if token is None:
+                        return None, "TOKEN_FILE_NOT_FOUND";
+                    if len(token) > 0:
+                        ts_now = int(time.time());
+                        m = re.match(r"(?P<ts>\d+);(?P<token>\d+);(?P<lifetime>\d+)", token[0].strip());
+                        if m:
+                            token = m.groupdict()['token'];
+                            ts_now = int(time.time());
+                            ts_token = int(m.groupdict()['ts']) + int(m.groupdict()['lifetime']);
+                            if ts_now > ts_token:
+                                if check_mode:
+                                    return self.activekey['pin'] + token, None;
+                                if attempts > 5:
+                                    return None, "TOKEN_EXPIRED";
+                                attempts += 1;
+                                display.display('<' + self.info['host'] + '> token expired in "' + self.activekey['token'] + '", sleep for ' + str(token_wait_time) + ' seconds', color='yellow');
+                                time.sleep(token_wait_time);
+                                continue;
+                            display.display('<' + self.info['host'] + '> using token: ' + token + ', lifetime: ' + str(ts_token - ts_now) + ' seconds', color='green');
+                            return self.activekey['pin'] + token, None;
+                        else:
+                            return None, "TOKEN_INVALID_FORMAT";
+                    else:
+                        return None, "TOKEN_NOT_FOUND";
+            return value, None;
+        else:
+            return None, "NO_" + item.upper();
+
+    def _get_key_from_keystore(self, host):
         '''
         TODO: request fingerprints for jumphosts.
         '''
-        return (self.conf['username'], None); 
-
+        if len(self.keystore) > 0:
+            self.activekey = self.keystore.pop(0);
+            return None;
+        return 'no more access credentials left to try';
 
     def _get_network_connectivity_details(self):
         '''
@@ -671,6 +731,11 @@ class ActionModule(ActionBase):
         it is accessing. By default, the plugin accesses devices via SSH
         protocol. Later, the plugin will add jumphost information, if necessary.
         '''
+
+        err = self._get_key_from_keystore(self.info['host']);
+        if err:
+            self.errors.append(err);
+            return;
 
         _proto = 'ssh';
         if self.info['host_protocol'] is not None:
@@ -692,7 +757,7 @@ class ActionModule(ActionBase):
             if self.info['host_port'] is not None:
                 self.conf['args'].extend(['-p', str(self.info['host_port'])]);
             self.conf['args'].append('-tt');
-            _ssh_user, _ssh_fingerprint = self._get_ssh_connectivity_details(self.info['host']);
+            _ssh_user = self.activekey['username'];
             _ssh_host = self.info['host'];
             if self.info['host_overwrite'] is not None:
                 _ssh_host = self.info['host_overwrite']
@@ -963,7 +1028,12 @@ class ActionModule(ActionBase):
                         if re.search(prompt + ':', remote_session_stdin):
                             _prompted = True;
                             display.vvv('detected "' + prompt + '" prompt, sending response', host=self.info['host']);
-                            os.write(remote_session_stdout_pw.fileno(), self.conf[prompt] + "\n");
+                            _prompt_response, response_error = self._get_item_from_key(prompt);
+                            if response_error:
+                                self.errors.append('received ' + response_error + ' when looking up ' + prompt);
+                                os.write(remote_session_stdout_pw.fileno(), 'INTERNAL_ERROR' + "\n");
+                            else:
+                                os.write(remote_session_stdout_pw.fileno(), _prompt_response + "\n");
                     if not _prompted:
                         if str(remote_session_stdin) == "":
                             pass;
@@ -1588,7 +1658,7 @@ class ActionModule(ActionBase):
         - `hardware_macaddr`
 
         '''
-        display.vv('checking host facts ... ');
+        display.vv('<' + self.info['host'] + '> checking host facts ... ');
         patterns = None;
         if 'fact_patterns' not in self.conf:
             return;
@@ -2096,6 +2166,7 @@ class ActionModule(ActionBase):
         else:
             self.conf['cliset'][cli_id]['status'] = 'ok';
             return False;
+        self.conf['cliset'][cli_id]['system_err'] = lines;
         self.conf['cliset'][cli_id]['status'] = 'failed';
         return True;
 
@@ -2268,7 +2339,7 @@ class ActionModule(ActionBase):
         dft_credentials = {};
         for c in db:
             for k in c:
-                if k not in ['regex', 'username', 'password', 'password_enable', 'priority', 'description', 'default']:
+                if k not in ['regex', 'username', 'password', 'password_enable', 'priority', 'description', 'default', 'token', 'pin']:
                     self.errors.append('access credentials dictionary contains invalid key: ' + k);
             required_keys = ['username', 'password', 'priority'];
             for k in required_keys:
