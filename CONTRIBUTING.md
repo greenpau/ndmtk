@@ -94,23 +94,17 @@ Create a diff file, where `/home/greenpau/github.com/greenpau/ndmtk/ndmtk` is in
 source code directory and the `/lib/...` contains modified code:
 
 ```
-diff -aNur -x '*.pyc' /home/greenpau/github.com/greenpau/ndmtk/ndmtk /lib/python/site-packages/ndmtk > ~/greenpau.ndmtk.v0.1.1.diff
-```
-
-Next, normalize the diff:
-
-```
-sed -i 's/\/.*ndmtk\//ndmtk\//g' ~/greenpau.ndmtk.v0.1.1.diff
+diff -aNur -x '*.pyc' ~/github.com/greenpau/ndmtk/ndmtk /lib/python/site-packages/ndmtk > ~/ndmtk.patch
 ```
 
 Then, create a new branch and apply the patch:
 
 ```
-cd /home/greenpau/github.com/greenpau/ndmtk
+cd ~/github.com/greenpau/ndmtk/ndmtk
 git checkout master
 git checkout -b patch001
 git push -u origin patch001
-patch -p0 < ~/greenpau.ndmtk.v0.1.1.diff
+patch -s -p0 < ~/ndmtk.patch
 ```
 
 :arrow_up: [Back to top](#top)

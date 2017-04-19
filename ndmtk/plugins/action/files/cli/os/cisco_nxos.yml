@@ -13,7 +13,11 @@ ndmtk:
   paging: 'terminal length 0'
 - cli: show version
   tags: version
-- cli: show ip bgp summary vrf all
+- description: 'BGP neighbor details'
+  cli: 'show ip bgp vrf all'
+  conditions_match_any:
+  - '^router bgp'
+- cli: 'show ip bgp summary vrf all'
   tags: ['routing', 'bgp']
   conditions_match_any:
   - '^router bgp'
@@ -36,6 +40,12 @@ ndmtk:
     - cli: 'show ip bgp neighbors <IP_ADDRESS> received-routes vrf <VRF>'
       required: ['IP_ADDRESS', 'VRF']
       format: 'txt'
+- description: 'Collects BGP route information for all BGP address families'
+  cli: 'show ip bgp all vrf all'
+  tags: ['routing', 'bgp']
+  conditions_precedent_all:
+  - 'os_class eq cisco_nxos'
+  - 'os_version_major ge 7'
 - cli: 'show ip arp vrf all'
 - cli: 'show clock'
 - cli: 'show ip route vrf all'
@@ -268,6 +278,8 @@ ndmtk:
 - description: 'Collects internal system ACL TCAM table information'
   cli: 'show system internal access-list globals'
   tags: 'internals'
+  success_if:
+  - '.*'
 - description: 'Collects internal system capabilities'
   cli: 'show system internal capability'
   tags: 'internals'
@@ -286,6 +298,8 @@ ndmtk:
   allow_empty_response: yes
   conditions_match_any:
   - '^feature lldp'
+  success_if:
+  - '.*'
 - description: 'Collects LLDP service status'
   cli: 'show system internal lldp info'
   tags: 'lldp'
@@ -342,7 +356,8 @@ ndmtk:
   tags: ['fib', 'vxlan']
   conditions_match_any:
   - '^interface nve'
-
+  success_if:
+  - '.*'
 
 - description: 'Collect SNMP status'
   cli: 'show snmp'
@@ -385,3 +400,89 @@ ndmtk:
   tags: ['management', 'snmp']
   conditions_match_any:
   - '^snmp-server'
+- description: 'Collect logging configuration'
+  cli: 'show logging info'
+  tags: ['management', 'logging']
+- description: 'Collect user privilege information'
+  cli: 'show privilege'
+  tags: ['aaa']
+- description: 'Collect AAA accounting configuration'
+  cli: 'show aaa accounting'
+  tags: ['aaa']
+  conditions_match_any:
+  - '^aaa a'
+- description: 'Collect AAA authentication configuration'
+  cli: 'show aaa authentication'
+  tags: ['aaa']
+  conditions_match_any:
+  - '^aaa a'
+- description: 'Collect AAA authorization configuration'
+  cli: 'show aaa authorization all'
+  tags: ['aaa']
+  conditions_match_any:
+  - '^aaa a'
+- description: 'Collect AAA groups'
+  cli: 'show aaa groups'
+  tags: ['aaa']
+  conditions_match_any:
+  - '^aaa a'
+- description: 'Collect information TACACS+ servers'
+  cli: 'show tacacs-server'
+  tags: ['aaa']
+  conditions_match_any:
+  - '^tacacs-server host'
+  derivatives:
+  - os:
+    - cisco_nxos
+    regex:
+    - pattern: '^\s+(?P<TACACS_HOST>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):\s*$'
+      flags: ['add_cli']
+    actions:
+    - description: 'Collect statistics for TACACS+ <TACACS_HOST> server'
+      cli: 'show tacacs-server statistics <TACACS_HOST>'
+      required: ['TACACS_HOST']
+      format: 'txt'
+
+- description: 'Collect sFlow configuration'
+  cli: 'show sflow'
+  tags: ['sflow']
+  conditions_match_any:
+  - '^sflow collector'
+- description: 'Collect sFlow statistics'
+  cli: 'show sflow statistics'
+  tags: ['sflow']
+  conditions_match_any:
+  - '^sflow collector'
+
+- description: 'Collect system processes'
+  cli: 'show process'
+  tags: ['process']
+
+- cli: 'show ip ospf vrf all'
+  tags: ['routing', 'ospf']
+  conditions_match_any:
+  - '^router ospf '
+- cli: 'show ip ospf database vrf all'
+  tags: ['routing', 'ospf']
+  conditions_match_any:
+  - '^router ospf '
+- cli: 'show ip ospf database detail vrf all'
+  tags: ['routing', 'ospf']
+  conditions_match_any:
+  - '^router ospf '
+- cli: 'show ip ospf interface vrf all'
+  tags: ['routing', 'ospf']
+  conditions_match_any:
+  - '^router ospf '
+- cli: 'show ip ospf neighbor summary vrf all'
+  tags: ['routing', 'ospf']
+  conditions_match_any:
+  - '^router ospf '
+- cli: 'show ip ospf neighbor detail vrf all'
+  tags: ['routing', 'ospf']
+  conditions_match_any:
+  - '^router ospf '
+- cli: 'show ip ospf route vrf all'
+  tags: ['routing', 'ospf']
+  conditions_match_any:
+  - '^router ospf '

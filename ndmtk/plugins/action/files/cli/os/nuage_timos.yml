@@ -380,6 +380,10 @@ ndmtk:
           cli: 'show vswitch-controller evpn-floodlist svcId <NUAGE_SVC_ID>'
           required: ['NUAGE_SVC_ID']
           format: 'txt'
+        - description: 'collect routing table information for <NUAGE_VSD_DOMAIN> domain of <NUAGE_VSD_ENTERPRISE> enterprise'
+          cli: 'show router <NUAGE_SVC_ID> route-table'
+          required: ['NUAGE_SVC_ID']
+          format: 'txt'
     - description: 'collect detailed information about <NUAGE_VSD_ENTERPRISE> enterprise'
       cli: 'show vswitch-controller enterprise "<NUAGE_VSD_ENTERPRISE>" domain detail'
       required: ['NUAGE_VSD_ENTERPRISE']
