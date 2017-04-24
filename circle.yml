@@ -11,7 +11,7 @@ machine:
     version: 2.7.5
   environment:
     PACKAGE: ndmtk
-    VERSION: '0.1.7'
+    VERSION: '0.1.8'
     TAG1: ${VERSION}-$(date +%Y%m%dT%H%M)-git-${CIRCLE_SHA1:0:7}
     TAG2: ${CIRCLE_PR_USERNAME}_${CIRCLE_BRANCH/pull\//pr_}
   services:

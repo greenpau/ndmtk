@@ -101,3 +101,88 @@ Considerations:
     present
 
 :arrow_up: [Back to top](#top)
+
+*****
+
+## Multi-factor Authentication Internals
+
+When an Ansible playbook contains tasks related to `ndmtk` plugin,
+Ansible invokes `ndmtk` callback plugin. The plugin performs lookup the
+lookup of access credentials in Ansible Vault.
+
+By default, the plugin looks for `safe` and `lockpick` task arguments.
+If they are not defined, the plugin attempts to read
+`~/.ansible.vault.yml` (safe) and `~/.ansible.vault.key` (lockpick)
+files. The looked up access credentials are stored in
+`task['args']['credentials']` list and passed to `ndmtk` action plugin.
+
+The action plugin invokes `_load_credentials()` function to parse the
+list. The function returns a list of dictionaries.
+
+``` {.sourceCode .json}
+[
+ {u'description': u'SDN Production Cisco Nexus Leaf Switches',
+  u'password': u'pin,token',
+  u'password_enable': u'pin,token',
+  u'pin': u'4526',
+  u'priority': 1,
+  u'regex': u'^ny-fw02$',
+  u'token': u'~/token.bypass',
+  u'username': u'greenpau'},
+ {u'default': True,
+  u'description': u'my default password',
+  u'password': u'POC123',
+  u'password_enable': u'POC123',
+  u'priority': 1,
+  u'username': u'admin'}
+]
+```
+
+When the plugin prepares for the connectivity it takes out one access
+credentials set (FIFO) and puts it in `self.activekey` variable.
+
+Later, when prompted for the password by a remote device. It fetches the
+credentials from that variable using `_get_item_from_key()` function.
+
+When a credential set fails, the plugin will lookup additional
+credentials.
+
+``` {.sourceCode .bash}
+fatal: [ny-fw02]: FAILED! => {
+    "changed": false,
+    "data_dir": "/opt/data/ansible/poc-conf-20170221190959/ny-fw02",
+    "failed": true,
+    "junit": "/opt/data/ansible/poc-conf-20170221190959/ny-fw02/ny-fw02.junit.xml",
+    "msg": "authentication failed",
+    "temp_dir": "/Users/greenpau/.ansible/tmp/ndmtk/56cce459-f869-11e6-94e9-f45c89b1bb39/56d9c178-f869-11e6-a3a9-f45c89b1bb39/ny-fw02"
+}
+```
+
+When dealing with credentials requiring PIN and Soft or Hard Token, a
+user must provide the path to read tokens via `token` key inside of
+access credentials hash. For example, the below hash instructs the
+plugin to user PIN plus Token combination for password. The PIN is
+`1234` and the token can be found in `~/token.bypass`.
+
+``` {.sourceCode .yaml}
+- regex: '^ny-fw01$'
+  username: 'greenpau'
+  password: 'pin,token'
+  password_enable: 'pin,token'
+  token: '~/.token.bypass'
+  pin: '1234'
+  priority: 1
+  description: 'Token-authenticated device'
+```
+
+A user populates the `~/token.bypass` file via CLI command. For example,
+the below command send Token `4562356` to `~/token.bypass`.
+Additionally, the user specifies the amount of time the Token will be
+active, i.e. `10`. The plugin uses the information to determine whether
+the token is valid or not.
+
+``` {.sourceCode .bash}
+date "+%s;572680;10" > ~/.token.bypass
+```
+
+:arrow_up: [Back to top](#top)
