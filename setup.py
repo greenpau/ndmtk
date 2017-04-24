@@ -30,7 +30,7 @@ import stat;
 import unittest;
 
 pkg_name = 'ndmtk';
-pkg_ver = '0.1.7';
+pkg_ver = '0.1.8';
 
 cmdclass = {};
 
@@ -54,11 +54,11 @@ def pre_build_toolkit():
         return [];
     print("[INFO] the path to 'ansible' python package is: " + str(ansible_dirs));
     for ansible_dir in ansible_dirs:
-	for suffix in ['.py', '.pyc']:
-	    for plugin_type in ['plugins/action', 'plugins/callback']:
-	        plugin_file = os.path.join(ansible_dir, plugin_type , pkg_name + suffix);
-		try:
-		    os.unlink(plugin_file);
+        for suffix in ['.py', '.pyc']:
+            for plugin_type in ['plugins/action', 'plugins/callback']:
+                plugin_file = os.path.join(ansible_dir, plugin_type , pkg_name + suffix);
+                try:
+                    os.unlink(plugin_file);
                 except:
                     pass;
                 try:
@@ -68,7 +68,7 @@ def pre_build_toolkit():
                 if os.path.exists(plugin_file):
                     print("[ERROR] 'ansible' python package contains traces '" + pkg_name + "' package ("+ plugin_file +"), failed to delete, aborting!");
                 else:
-		    print("[INFO] 'ansible' python package contains traces '" + pkg_name + "' package ("+ plugin_file +"), deleted!");
+                    print("[INFO] 'ansible' python package contains traces '" + pkg_name + "' package ("+ plugin_file +"), deleted!");
     return ansible_dirs;
 
 def _find_utility(name):
@@ -96,8 +96,8 @@ def _find_py_package(name):
 def _post_build_toolkit(ansible_dirs, plugin_dir=None):
     if plugin_dir is None:
         plugin_dirs = _find_py_package(pkg_name);
-	if len(plugin_dirs) > 0:
-	    print("[INFO] the path to '" + pkg_name + "' python package is: " + str(plugin_dirs));
+        if len(plugin_dirs) > 0:
+            print("[INFO] the path to '" + pkg_name + "' python package is: " + str(plugin_dirs));
             for d in plugin_dirs:
                 if re.search('bdist', d) or re.search('build', d):
                     continue;
@@ -119,24 +119,26 @@ def _post_build_toolkit(ansible_dirs, plugin_dir=None):
         for i in ['action', 'callback']:
             symlink_target = os.path.join(plugin_dir, 'plugins/' + i + '/ndmtk.py');
             symlink_name = os.path.join(ansible_dir, 'plugins/' + i + '/ndmtk.py');
-	    try:
+            try:
                 os.symlink(symlink_target, symlink_name);
                 os.chmod(symlink_name, stat.S_IRUSR | stat.S_IWUSR);
-		_egg_files.append(symlink_name);
+                _egg_files.append(symlink_name);
                 _egg_files.append(symlink_name + 'c');
                 print("[INFO] created symlink '" + symlink_name + "' to plugin '" + symlink_target + "'");
             except:
-		print('[ERROR] an attempt to create a symlink ' + symlink_name + ' to plugin ' + symlink_target + ' failed, aborting!');
+                exc_type, exc_value, exc_traceback = sys.exc_info();
+                print('[ERROR] an attempt to create a symlink ' + symlink_name + ' to plugin ' + symlink_target + ' failed, aborting!');
+                print(traceback.format_exception(exc_type, exc_value, exc_traceback));
     return;
 
 class install_(install):
     def run(self):
         ansible_dirs = pre_build_toolkit();
-	if len(ansible_dirs) == 0:
-	    return 1;
+        if len(ansible_dirs) == 0:
+            return 1;
         install.run(self);
-	if len(ansible_dirs) > 0:
-	    self.execute(_post_build_toolkit, (ansible_dirs, self.install_lib, ), msg="running post_install_scripts");
+        if len(ansible_dirs) > 0:
+            self.execute(_post_build_toolkit, (ansible_dirs, self.install_lib, ), msg="running post_install_scripts");
 
 cmdclass['install'] = install_;
 cmdclass['bdist_wheel'] = install_;
@@ -145,34 +147,34 @@ class uninstall_(develop):
     def run(self):
         plugin_dirs = [];
         for dp in sys.path:
-	    if not re.search('site-packages$', dp):
-		continue;
+            if not re.search('site-packages$', dp):
+                continue;
             ds = [name for name in os.listdir(dp) if os.path.isdir(os.path.join(dp, name))];
-	    if ds:
-		for d in ds:
-		    if not re.match(pkg_name, d):
-			continue;
-		    if os.path.join(dp, d) not in plugin_dirs:
+            if ds:
+                for d in ds:
+                    if not re.match(pkg_name, d):
+                        continue;
+                    if os.path.join(dp, d) not in plugin_dirs:
                         plugin_dirs.append(os.path.join(dp, d));
         if plugin_dirs:
-	    for dp in plugin_dirs:
-		try:
-		    for root, dirs, files in os.walk(dp, topdown=False):
+            for dp in plugin_dirs:
+                try:
+                    for root, dirs, files in os.walk(dp, topdown=False):
                         for name in files:
                             if os.path.islink(os.path.join(root, name)):
-			        os.unlink(os.path.join(root, name));
+                                os.unlink(os.path.join(root, name));
                             else:
                                 os.remove(os.path.join(root, name));
                         for name in dirs:
                             os.rmdir(os.path.join(root, name));
-		    os.rmdir(dp);
+                    os.rmdir(dp);
                     print("[INFO] deleted '" + dp + "'");
-		except:
-		    print("[INFO] failed to delete '" + dp + "'");
-		    exc_type, exc_value, exc_traceback = sys.exc_info();
-		    print(traceback.format_exception(exc_type, exc_value, exc_traceback));
+                except:
+                    print("[INFO] failed to delete '" + dp + "'");
+                    exc_type, exc_value, exc_traceback = sys.exc_info();
+                    print(traceback.format_exception(exc_type, exc_value, exc_traceback));
         else:
-	    print("[INFO] no relevant files for the uninstall found, all clean");
+            print("[INFO] no relevant files for the uninstall found, all clean");
 
         ansible_dirs = _find_py_package('ansible');
         if len(ansible_dirs) == 0:
