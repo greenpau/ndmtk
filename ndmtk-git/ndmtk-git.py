@@ -180,6 +180,7 @@ class GitCommitSession(object):
                         continue;
                     host = db['conf']['host'];
                     fqdn = db['conf']['fqdn'];
+                    output_dir = db['output_dir'];
                     logger.debug('Host: ' + host);
                     logger.debug('FQDN: ' + fqdn);
                     if fqdn not in hosts:
@@ -194,6 +195,9 @@ class GitCommitSession(object):
                         for i in ['path', 'sha1', 'status', '_seq']:
                             if i not in cli_rst:
                                 _continue = False;
+                                continue;
+                            if i == 'path':
+                                cli_rst[i] = str(cli_rst[i]).replace(output_dir + '/', '');
                         if not _continue:
                             continue;
                         if cli_rst['status'] != 'ok':
@@ -202,8 +206,8 @@ class GitCommitSession(object):
                         if not hasattr(self, 'tasks'):
                             self.tasks = [];
                         task = {
-                            'dst_path': os.path.join(self.repo_dir, cli_rst['path'].replace(self.data_dir, '')),
-                            'git_path': cli_rst['path'].replace(self.data_dir, ''),
+                            'dst_path': os.path.join(self.repo_dir, cli_rst['path']),
+                            'src_path': os.path.join(self.data_dir, cli_rst['path']),
                             'host': host,
                             'fqdn': fqdn,
                         }
@@ -218,8 +222,8 @@ class GitCommitSession(object):
                                 continue;
                             task[i] = cli_rst[i];
                         
-                        if not os.path.exists(task['path']):
-                            logger.error('the source path does not exist: ' + task['path']);
+                        if not os.path.exists(os.path.join(self.data_dir, task['src_path'])):
+                            logger.error('the source path does not exist: ' + task['src_path']);
                             continue;
                         if not re.match(self.repo_dir, task['dst_path']):
                             '''
@@ -227,9 +231,9 @@ class GitCommitSession(object):
                             '''
                             logger.debug('detected reference to tmp file: ' + task['dst_path']);
                             continue;
-                        task['sha1'] = self._get_sha1_hash(task['path']);
+                        task['sha1'] = self._get_sha1_hash(task['src_path']);
                         if task['sha1'] is None:
-                            logger.error('failed to calculate SHA-1 hash for ' + task['path']);
+                            logger.error('failed to calculate SHA-1 hash for ' + task['src_path']);
                             continue;
                         if os.path.exists(task['dst_path']):
                             task['dst_path_sha1'] = self._get_sha1_hash(task['dst_path']);
@@ -237,7 +241,7 @@ class GitCommitSession(object):
                                 logger.error('failed to calculate SHA-1 hash for ' + task['dst_path']);
                                 continue;
                         else:
-                            logger.info('detected new file: ' + task['path']);
+                            logger.info('detected new file: ' + task['src_path']);
                         if task['dst_path'] not in hosts_files[fqdn]:
                             if 'time_start' in task:
                                 if int(task['time_start']) > self.latest_ts:
@@ -254,7 +258,7 @@ class GitCommitSession(object):
                                 self.summary[fqdn] = [];
                             summary_task = {};
                             for i in task:
-                                if i in ['dst_path', 'path', '_seq', 'sha1_pre']:
+                                if i in ['dst_path', 'src_path', '_seq', 'sha1_pre']:
                                     continue;
                                 summary_task[i] = task[i];
                             self.summary[fqdn].append(summary_task);
@@ -340,14 +344,14 @@ class GitCommitSession(object):
                 else:
                     logger.info('detected new file: ' +  fp + ' ' + task['sha1']);
 
-                with open(task['path'], 'r') as fr:
+                with open(task['src_path'], 'r') as fr:
                     with open(task['dst_path'], 'w') as fw:
                         fw.write(fr.read());
                 try:
                     self.r.index.add('*');
                     commit_path = task['dst_path'];
                     commit_sbj = task['fqdn'] + ': ';
-                    excluded_fields = ['dst_path', 'path', 'saveas', 'description', 'sha1_pre', '_seq', 'child_cli_id'];
+                    excluded_fields = ['dst_path', 'src_path', 'saveas', 'description', 'sha1_pre', '_seq', 'child_cli_id'];
                     files = str(self.r.git.status(porcelain=True,untracked_files=True)).split('\n');
                     if len(files) > 1:
                         self.errors.append('the number of staged files exceeds the expected value.');

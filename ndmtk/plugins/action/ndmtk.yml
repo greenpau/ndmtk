@@ -40,6 +40,7 @@ allowed_os:
   - pattern: 'System image file is "(?P<os_image_file>\S+)"'
 - name: 'cisco_ios'
 - name: 'cisco_iosxe'
+- name: 'cisco_iosxr'
 - name: 'cisco_ironport'
 - name: 'cisco_nxos'
 - name: 'cisco_nxos_cmp'

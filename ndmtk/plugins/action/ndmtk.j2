@@ -431,7 +431,7 @@ while 1 {
             }
             log_commit;
         }
-        -regexp {[Pp]assword:\s?$} {
+        -regexp {[Pp][Aa][Ss][Ss][CcWw][Oo][DdRr][EeDd]:\s?$} {
             send_status "password_prompted:yes";
             incr session_connected;
             set cli_output [parse_cli "$expect_out(buffer)"];
