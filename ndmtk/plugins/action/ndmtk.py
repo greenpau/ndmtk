@@ -758,7 +758,7 @@ class ActionModule(ActionBase):
                 self.conf['args'].extend(['-p', str(self.info['host_port'])]);
             self.conf['args'].append('-tt');
             _ssh_user = self.activekey['username'];
-            _ssh_host = self.info['host'];
+            _ssh_host = self.info['fqdn'];
             if self.info['host_overwrite'] is not None:
                 _ssh_host = self.info['host_overwrite']
             self.conf['args'].append(_ssh_user + "@" + _ssh_host);
@@ -1899,6 +1899,22 @@ class ActionModule(ActionBase):
                                         _is_not_allowed = False
                                 if _is_not_allowed:
                                     continue;
+                            '''
+                            Here, we filter commands that were already added to the queue
+                            '''
+                            _is_duplicate_cli = False;
+                            for _id in self.conf['cliset']:
+                                if not isinstance(self.conf['cliset'][_id], dict):
+                                    continue;
+                                if 'cli' in self.conf['cliset'][_id]:
+                                    if self.conf['cliset'][_id]['cli'] == cli_entry['cli']:
+                                        _is_duplicate_cli = True;
+                                        break;
+                            if _is_duplicate_cli:
+                                continue;
+                            '''
+                            Add derivative command to the queue.
+                            '''
                             display.display('<' + self.info['host'] + '> added derivative command to queue: ' + c, color='green');
                             self.conf['cliset_last_id'] += 1;
                             self.conf['cliset'][self.conf['cliset_last_id']] = cli_entry;

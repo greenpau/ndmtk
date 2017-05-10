@@ -4,7 +4,7 @@
 # Copyright (C) 2016 Paul Greenberg @greenpau
 # See LICENSE.txt for licensing details
 #
-# File: plugins/action/files/cli/os/cisco_ios.yml
+# File: plugins/action/files/cli/os/cisco_iosxr.yml
 #
 
 ndmtk:
@@ -13,107 +13,74 @@ ndmtk:
   paging: 'terminal length 0'
 - cli: show version
   tags: version
-- description: 'BGP details'
-  cli: 'show ip bgp'
+
+- description: 'Collect BGP IPv4 unicast routes'
+  cli: 'show bgp vpnv4 unicast'
   conditions_match_any:
   - '^router bgp'
-- cli: 'show ip bgp summary'
+
+- cli: 'show bgp vpnv4 unicast summary'
   tags: ['routing', 'bgp']
   conditions_match_any:
   - '^router bgp'
   derivatives:
-  - description: 'BGP neighbor details'
+  - description: 'Collect BGP neighbor details'
     os:
-    - cisco_ios
+    - cisco_iosxr
     regex:
     - pattern: '^(?P<IP_ADDRESS>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+'
       flags: ['add_cli']
     actions:
-    - cli: 'show ip bgp neighbors <IP_ADDRESS> advertised-routes'
+    - cli: 'show bgp vpnv4 unicast neighbors <IP_ADDRESS>'
       required: ['IP_ADDRESS']
       format: 'txt'
-    - cli: 'show ip bgp neighbors <IP_ADDRESS> received-routes'
+    - cli: 'show bgp vpnv4 unicast neighbors <IP_ADDRESS> advertised-routes'
       required: ['IP_ADDRESS']
       format: 'txt'
-- cli: 'show ip arp'
+    - cli: 'show bgp vpnv4 unicast neighbors <IP_ADDRESS> received routes vrf'
+      required: ['IP_ADDRESS', 'VRF']
+      format: 'txt'
+    - cli: 'show bgp vpnv4 unicast neighbors <IP_ADDRESS> performance-statistics'
+      required: ['IP_ADDRESS']
+      format: 'txt'
+    - cli: 'show bgp vpnv4 unicast neighbors <IP_ADDRESS> detail'
+      required: ['IP_ADDRESS']
+      format: 'txt'
+- cli: 'show arp vrf all'
 - cli: 'show clock'
-
-- cli: 'show ip route'
-
-- cli: 'show ntp status'
-  conditions_match_any:
-  - '^ntp server'
-  - '^ntp peer'
+- cli: 'show route vrf all'
+- cli: 'show route summary'
 - cli: 'show ntp associations'
   conditions_match_any:
-  - '^ntp server'
-  - '^ntp peer'
-- cli: 'show ip mroute'
+  - '^ntp'
+- cli: 'show ntp status'
   conditions_match_any:
-  - 'ip pim'
-- cli: 'show ip mroute count'
+  - '^ntp'
+- cli: 'show mrib route'
   conditions_match_any:
-  - 'ip pim'
-- cli: 'show ip mroute summary'
+  - 'router pim'
+- cli: 'show mrib route summary'
   conditions_match_any:
-  - 'ip pim'
-- cli: 'show ip igmp snooping groups detail'
+  - 'router pim'
+- cli: 'show pim vrf all neighbor'
   conditions_match_any:
-  - 'ip igmp'
-
-- cli: 'show ip pim rp'
+  - 'router pim'
+- cli: 'show pim vrf all interface'
   conditions_match_any:
-  - 'ip pim'
-- cli: 'show ip pim neighbor'
-  conditions_match_any:
-  - 'ip pim'
-- cli: 'show ip pim interface'
-  conditions_match_any:
-  - 'ip igmp'
-
-- cli: 'show startup-config'
+  - 'router pim'
 - cli: 'show interface'
-- cli: 'show vlan'
-  conditions_match_any:
-  - '^vlan'
-- cli: 'show etherchannel summary'
-  conditions_match_any:
-  - 'interface [Pp]ort-[Cc]hannel'
-- cli: 'show etherchannel detail'
-  conditions_match_any:
-  - 'interface [Pp]ort-[Cc]hannel'
-- cli: 'show etherchannel load-balance'
-  conditions_match_any:
-  - 'interface [Pp]ort-[Cc]hannel'
-- cli: show mac-address-table
-  conditions_match_any:
-  - '^vlan'
-- cli: 'show ip interface'
-- cli: 'show ip interface brief'
-- cli: 'show route-map'
-  conditions_match_any:
-  - '^route-map'
 - cli: 'show ip access-list'
   conditions_match_any:
   - 'ip access-list'
 - cli: 'show inventory'
-- cli: 'show module'
-- cli: 'show ip igmp group'
-  conditions_match_any:
-  - 'ip igmp'
-- cli: 'show ip igmp interface'
-  conditions_match_any:
-  - 'ip igmp'
-
 - description: 'Collect VRF status'
-  cli: show vrf all
+  cli: 'show vrf all'
   conditions_match_any:
-  - 'ip vrf'
-  - 'vrf context'
+  - '^vrf '
   tags: ['vxlan', 'vrf', 'test']
   derivatives:
   - os:
-    - cisco_ios
+    - cisco_iosxr
     regex:
     - pattern: '^(?P<VRF_NAME>\S+)\s+(\d+)\s+'
       flags: ['add_cli']
@@ -124,11 +91,33 @@ ndmtk:
       required: ['VRF_NAME']
       allow_empty_response: no
 
-- description: 'Collects CDP neighbor detailed information'
-  cli: 'show cdp neighbors detail'
-  tags: 'cdp'
+- description: 'Collects LLDP neighbor information'
+  cli: 'show lldp neighbors'
+  tags: 'lldp'
+  allow_empty_response: yes
+  conditions_match_any:
+  - '^lldp'
+  success_if:
+  - '.*'
+- description: 'Collects detailed LLDP neighbor information'
+  cli: 'show lldp neighbors detail'
+  tags: 'lldp'
+  allow_empty_response: yes
+  conditions_match_any:
+  - '^lldp'
+  success_if:
+  - '.*'
+- description: 'Collects LLDP service status'
+  cli: 'show lldp interface'
+  tags: 'lldp'
+  conditions_match_any:
+  - '^lldp'
+
 - description: 'Collects CDP neighbor information'
   cli: 'show cdp neighbors'
+  tags: 'cdp'
+- description: 'Collects detailed CDP neighbor information'
+  cli: 'show cdp neighbors detail'
   tags: 'cdp'
 - description: 'Collects CDP service status'
   cli: 'show cdp'
@@ -142,29 +131,13 @@ ndmtk:
   tags: ['management', 'snmp']
   conditions_match_any:
   - '^snmp-server'
-- description: 'Collect SNMP community strings'
-  cli: 'show snmp community'
-  tags: ['management', 'snmp']
-  conditions_match_any:
-  - '^snmp-server'
 - description: 'Collect SNMP engineID'
-  cli: 'show snmp engineID'
+  cli: 'show snmp engineid'
   tags: ['management', 'snmp']
   conditions_match_any:
   - '^snmp-server'
-- description: 'Collect SNMP roles'
-  cli: 'show snmp group'
-  tags: ['management', 'snmp']
-  conditions_match_any:
-  - '^snmp-server'
-- description: 'Collect SNMP sessions'
-  cli: 'show snmp sessions'
-  tags: ['management', 'snmp']
-  conditions_match_any:
-  - '^snmp-server'
-  allow_empty_response: yes
 - description: 'Collect SNMP notifications enabled or disabled'
-  cli: 'show snmp view'
+  cli: 'show snmp trap'
   tags: ['management', 'snmp']
   conditions_match_any:
   - '^snmp-server'
@@ -174,61 +147,50 @@ ndmtk:
   conditions_match_any:
   - '^snmp-server'
 - description: 'Collect SNMP ifIndex numbers of interface'  
-  cli: 'show snmp mib ifmib ifindex'
+  cli: 'show snmp interface'
   tags: ['management', 'snmp']
   conditions_match_any:
   - '^snmp-server'
 
 - description: 'Collect logging configuration'
-  cli: 'show logging'
+  cli: 'show logging last 100'
   tags: ['management', 'logging']
 
-- description: 'Collect user privilege information'
-  cli: 'show privilege'
+- description: 'Collect local user database information'
+  cli: 'show aaa userdb'
   tags: ['aaa']
 
 - description: 'Collect information TACACS+ servers'
   cli: 'show tacacs'
   tags: ['aaa']
   conditions_match_any:
-  - '^tacacs-server host'
-
-- description: 'Collect sFlow configuration'
-  cli: 'show sflow'
-  tags: ['sflow']
-  conditions_match_any:
-  - '^sflow collector'
-- description: 'Collect sFlow statistics'
-  cli: 'show sflow statistics'
-  tags: ['sflow']
-  conditions_match_any:
-  - '^sflow collector'
+  - '^aaa group server tacacs'
 
 - description: 'Collect system processes'
-  cli: 'show process'
+  cli: 'show processes'
   tags: ['process']
 
-- cli: 'show ip ospf'
+- cli: 'show ospf'
   tags: ['routing', 'ospf']
   conditions_match_any:
   - '^router ospf '
-- cli: 'show ip ospf database'
+- cli: 'show ospf database'
   tags: ['routing', 'ospf']
   conditions_match_any:
   - '^router ospf '
-- cli: 'show ip ospf interface'
+- cli: 'show ospf interface'
   tags: ['routing', 'ospf']
   conditions_match_any:
   - '^router ospf '
-- cli: 'show ip ospf neighbor'
+- cli: 'show ospf neighbor'
   tags: ['routing', 'ospf']
   conditions_match_any:
   - '^router ospf '
-- cli: 'show ip ospf neighbor detail'
+- cli: 'show ospf neighbor detail'
   tags: ['routing', 'ospf']
   conditions_match_any:
   - '^router ospf '
-- cli: 'show ip route ospf'
+- cli: 'show ospf route'
   tags: ['routing', 'ospf']
   conditions_match_any:
   - '^router ospf '
