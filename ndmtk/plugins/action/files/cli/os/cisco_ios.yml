@@ -8,12 +8,12 @@
 #
 
 ndmtk:
-- cli: show running-config
-  tags: configuration
-  paging: 'terminal length 0'
-- cli: show version
-  tags: version
-- description: 'BGP details'
+- cli: 'show running-config'
+  tags: ['configuration']
+  paging: ['terminal length 0']
+- cli: 'show version'
+  tags: ['version']
+- description: 'Collect BGP routing table'
   cli: 'show ip bgp'
   conditions_match_any:
   - '^router bgp'
@@ -37,9 +37,7 @@ ndmtk:
       format: 'txt'
 - cli: 'show ip arp'
 - cli: 'show clock'
-
 - cli: 'show ip route'
-
 - cli: 'show ntp status'
   conditions_match_any:
   - '^ntp server'
@@ -60,7 +58,6 @@ ndmtk:
 - cli: 'show ip igmp snooping groups detail'
   conditions_match_any:
   - 'ip igmp'
-
 - cli: 'show ip pim rp'
   conditions_match_any:
   - 'ip pim'
@@ -70,7 +67,6 @@ ndmtk:
 - cli: 'show ip pim interface'
   conditions_match_any:
   - 'ip igmp'
-
 - cli: 'show startup-config'
 - cli: 'show interface'
 - cli: 'show vlan'
@@ -104,7 +100,6 @@ ndmtk:
 - cli: 'show ip igmp interface'
   conditions_match_any:
   - 'ip igmp'
-
 - description: 'Collect VRF status'
   cli: show vrf all
   conditions_match_any:
@@ -123,7 +118,6 @@ ndmtk:
       - 'show vrf <VRF_NAME> detail'
       required: ['VRF_NAME']
       allow_empty_response: no
-
 - description: 'Collects CDP neighbor detailed information'
   cli: 'show cdp neighbors detail'
   tags: 'cdp'
@@ -136,7 +130,6 @@ ndmtk:
 - description: 'Collects CDP configuration on per interface basis'
   cli: 'show cdp interface'
   tags: 'cdp'
-
 - description: 'Collect SNMP status'
   cli: 'show snmp'
   tags: ['management', 'snmp']
@@ -178,21 +171,17 @@ ndmtk:
   tags: ['management', 'snmp']
   conditions_match_any:
   - '^snmp-server'
-
 - description: 'Collect logging configuration'
   cli: 'show logging'
   tags: ['management', 'logging']
-
 - description: 'Collect user privilege information'
   cli: 'show privilege'
   tags: ['aaa']
-
 - description: 'Collect information TACACS+ servers'
   cli: 'show tacacs'
   tags: ['aaa']
   conditions_match_any:
   - '^tacacs-server host'
-
 - description: 'Collect sFlow configuration'
   cli: 'show sflow'
   tags: ['sflow']
@@ -203,11 +192,9 @@ ndmtk:
   tags: ['sflow']
   conditions_match_any:
   - '^sflow collector'
-
 - description: 'Collect system processes'
   cli: 'show process'
   tags: ['process']
-
 - cli: 'show ip ospf'
   tags: ['routing', 'ospf']
   conditions_match_any:

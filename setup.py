@@ -121,7 +121,7 @@ def _post_build_toolkit(ansible_dirs, plugin_dir=None):
             symlink_name = os.path.join(ansible_dir, 'plugins/' + i + '/ndmtk.py');
             try:
                 os.symlink(symlink_target, symlink_name);
-                os.chmod(symlink_name, stat.S_IRUSR | stat.S_IWUSR);
+                os.chmod(symlink_name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH);
                 _egg_files.append(symlink_name);
                 _egg_files.append(symlink_name + 'c');
                 print("[INFO] created symlink '" + symlink_name + "' to plugin '" + symlink_target + "'");
