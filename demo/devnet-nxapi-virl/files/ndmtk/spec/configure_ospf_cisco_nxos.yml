@@ -1,0 +1,19 @@
+---
+ndmtk:
+- pre: |
+    conf t
+  cli: |
+    feature ospf
+    router ospf 1
+      passive-interface default
+      log-adjacency-changes detail
+      exit
+    interface Ethernet2/1 - 3
+      no ip ospf passive-interface
+      ip router ospf 1 area 0.0.0.0
+      no ip ospf passive-interface
+      exit
+    copy running-config startup-config
+  post: |
+    exit
+  mode: configure
