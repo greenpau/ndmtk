@@ -1,0 +1,17 @@
+#
+# DevNet Sandbox
+#
+
+controller ansible_connection=local
+
+[sandbox:children]
+sandbox-nxapi
+
+[sandbox-nxapi]
+nx-osv-1 os=cisco_nxos host_overwrite=172.16.1.90 timeout=90
+nx-osv-2 os=cisco_nxos host_overwrite=172.16.1.91 timeout=90
+nx-osv-3 os=cisco_nxos host_overwrite=172.16.1.92 timeout=90
+nx-osv-4 os=cisco_nxos host_overwrite=172.16.1.93 timeout=90
+
+[sandbox:vars]
+ansible_connection=local

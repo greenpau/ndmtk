@@ -1,0 +1,14 @@
+---
+- name: data collection
+  hosts:
+  - sandbox
+  strategy: free
+  gather_facts: no
+  tasks:
+  - name: collect all available data from DevNet Sandbox nodes
+    action: ndmtk
+        output="/opt/data/devnet-sandbox/nxapi-%Y%m%d%H%M%S"
+        no_host_key_check=yes
+        on_error=continue
+        safe="./ansible.vault.yml"
+        lockpick="./ansible.vault.key"
