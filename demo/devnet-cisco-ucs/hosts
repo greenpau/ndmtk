@@ -1,0 +1,14 @@
+#
+# DevNet Sandbox
+#
+
+controller ansible_connection=local
+
+[cisco-ucs:children]
+cisco-ucs-shell
+
+[cisco-ucs-shell]
+cisco-ucs-manager os=cisco_ucs host_overwrite=10.199.0.219 host_port=5901
+
+[cisco-ucs:vars]
+ansible_connection=local

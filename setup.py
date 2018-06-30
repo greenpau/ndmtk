@@ -39,6 +39,24 @@ def _load_test_suite():
     test_suite = test_loader.discover(os.path.join(pkg_dir, pkg_name, 'tests'), pattern='test_*.py');
     return test_suite;
 
+def remove_ansible_files(ansible_dirs):
+    for ansible_dir in ansible_dirs:
+        for suffix in ['.py', '.pyc']:
+            for plugin_type in ['plugins/action', 'plugins/callback']:
+                plugin_file = os.path.join(ansible_dir, plugin_type , pkg_name + suffix);
+                if os.path.isfile(plugin_file) or os.path.islink(plugin_file):
+                    print("[INFO] found '%s'" % plugin_file);
+                    try:
+                        if os.path.islink(plugin_file):
+                            os.unlink(plugin_file);
+                        else:
+                            os.remove(plugin_file);
+                        print("[INFO] removed '%s'" % plugin_file);
+                    except:
+                        exc_type, exc_value, exc_traceback = sys.exc_info();
+                        print("[ERROR] failed to remove %s %s" % (plugin_file, ''.join(traceback.format_exception(exc_type, exc_value, exc_traceback))));
+    return
+
 def pre_build_toolkit():
     for ts in _load_test_suite():
         tsr=unittest.TextTestRunner();
@@ -53,22 +71,7 @@ def pre_build_toolkit():
         print("[ERROR] 'ansible' python package was not found");
         return [];
     print("[INFO] the path to 'ansible' python package is: " + str(ansible_dirs));
-    for ansible_dir in ansible_dirs:
-        for suffix in ['.py', '.pyc']:
-            for plugin_type in ['plugins/action', 'plugins/callback']:
-                plugin_file = os.path.join(ansible_dir, plugin_type , pkg_name + suffix);
-                try:
-                    os.unlink(plugin_file);
-                except:
-                    pass;
-                try:
-                    os.remove(plugin_file);
-                except:
-                    pass;
-                if os.path.exists(plugin_file):
-                    print("[ERROR] 'ansible' python package contains traces '" + pkg_name + "' package ("+ plugin_file +"), failed to delete, aborting!");
-                else:
-                    print("[INFO] 'ansible' python package contains traces '" + pkg_name + "' package ("+ plugin_file +"), deleted!");
+    remove_ansible_files(ansible_dirs);
     return ansible_dirs;
 
 def _find_utility(name):
@@ -180,18 +183,7 @@ class uninstall_(develop):
         if len(ansible_dirs) == 0:
             print("[ERROR] 'ansible' python package was not found");
             return;
-        for ansible_dir in ansible_dirs:
-            for suffix in ['.py', '.pyc']:
-                for plugin_type in ['plugins/action', 'plugins/callback']:
-                    plugin_file = os.path.join(ansible_dir, plugin_type , pkg_name + suffix);
-                    try:
-                        os.unlink(plugin_file);
-                    except:
-                        pass;
-                    try:
-                        os.remove(plugin_file);
-                    except:
-                        pass;
+        remove_ansible_files(ansible_dirs);
         return;
 
 

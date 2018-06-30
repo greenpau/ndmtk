@@ -1,0 +1,14 @@
+---
+- name: data collection from Cisco UCS
+  hosts:
+  - 'cisco-ucs'
+  strategy: free
+  gather_facts: no
+  tasks:
+  - name: collect all available data from Cisco UCS Manager managed fabric
+    action: ndmtk
+        output="/opt/data/devnet-cisco-ucs/cisco-ucs-%Y%m%d%H%M%S"
+        no_host_key_check=yes
+        on_error=continue
+        safe="./ansible.vault.yml"
+        lockpick="./ansible.vault.key"

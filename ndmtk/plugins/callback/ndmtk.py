@@ -160,9 +160,14 @@ class CallbackModule(CallbackBase):
         for _safe, _lockpick in secrets:
             try:
                 _safe_loader = DataLoader();
-                _safe_lockpick = CLI.read_vault_password_file(_lockpick, loader=_safe_loader);
-                _safe_loader.set_vault_password(_safe_lockpick);
-                _safe_contents = _safe_loader.load_from_file(_safe);
+                _safe_lockpick = None
+                try:
+                    _safe_lockpick = CLI.read_vault_password_file(_lockpick, loader=_safe_loader);
+                    _safe_loader.set_vault_password(_safe_lockpick);
+                    _safe_contents = _safe_loader.load_from_file(_safe);
+                except:
+                    _safe_lockpick = CLI.setup_vault_secrets(_safe_loader, [_lockpick])
+                    _safe_contents = _safe_loader.load_from_file(_safe);
                 if 'credentials' not in _safe_contents:
                     return dict();
                 #display.display(pprint.pformat(_safe_contents, indent=4), color='green');

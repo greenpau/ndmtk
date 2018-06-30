@@ -45,6 +45,7 @@ allowed_os:
 - name: 'cisco_nxos'
 - name: 'cisco_nxos_cmp'
 - name: 'cisco_nxos_mds'
+- name: 'cisco_ucs'
 - name: 'citrix_netscaler'
 - name: 'junos_qfx'
 - name: 'junos_srx'
@@ -80,6 +81,7 @@ allowed_os:
   - 'environment no more'
   exit_sequence:
   - 'logout'
+- name: 'rest'
 
 allowed_ref_tags:
 - 'configuration'

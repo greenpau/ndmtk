@@ -1,8 +1,7 @@
 ---
 - name: OSPF configuration
   hosts:
-  #- sandbox
-  - nx-osv-2
+  - sandbox
   strategy: free
   gather_facts: no
   tasks:
