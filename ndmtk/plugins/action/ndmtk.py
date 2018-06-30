@@ -256,7 +256,17 @@ import stat;
 from collections import OrderedDict;
 from ansible.errors import AnsibleError;
 from ansible.plugins.action import ActionBase;
-from ansible.utils.boolean import boolean;
+try:
+    from ansible.module_utils.parsing.convert_bool import boolean
+except ImportError:
+    try:
+        from ansible.utils.boolean import boolean
+    except ImportError:
+        try:
+            from ansible.utils import boolean
+        except ImportError:
+            from ansible import constants
+            boolean = constants.mk_boolean
 from datetime import date;
 import jinja2;
 import json;
@@ -408,8 +418,8 @@ class ActionModule(ActionBase):
                 self.errors.append('the \'' + str(self.conf['on_' + i]) + '\' is not a valid option for \'' + self.plugin_name + '\' plugin');
                 return dict(msg='\n'.join(self.errors), log_dir=self.conf['temp_dir'], failed=True);
 
-        self.conf['disable_defaults'] = boolean(self._task.args.get('disable_defaults'));
-        self.conf['no_host_key_check'] = boolean(self._task.args.get('no_host_key_check'));
+        self.conf['disable_defaults'] = boolean(self._task.args.get('disable_defaults', 'no'));
+        self.conf['no_host_key_check'] = boolean(self._task.args.get('no_host_key_check', 'no'));
         self.conf['allowed_sections'] = self._task.args.get('sections', None);
         if self.conf['allowed_sections'] is not None:
             self.conf['allowed_sections'] = [s.strip() for s in self.conf['allowed_sections'].split(",")]
@@ -428,6 +438,26 @@ class ActionModule(ActionBase):
             if self.info[i] is None and i in ['os']:
                 self.errors.append('\'' + self.plugin_name + '_' + i + '\' inventory attribute must be associated with ' + self.info['host']);
                 return dict(msg='\n'.join(self.errors), log_dir=self.conf['temp_dir'], failed=True);
+
+        '''
+        Determine the interface to interract with a remote system.
+        Currently, there are two types: shell and api
+        '''
+        api_interfaces = [
+            'rest',
+        ];
+        if self.info['os'] in api_interfaces:
+            self._is_api_driven = True;
+        else:
+            self._is_api_driven = False;
+
+        if self._is_api_driven:
+            for i in ['api_endpoint']:
+                v = task_vars.get(i, None);
+                if v is None:
+                    self.errors.append('interraction with API-driven operating systems requires defining ' + i + ' ' + self.info['host']);
+                    return dict(msg='\n'.join(self.errors), log_dir=self.conf['temp_dir'], failed=True);
+                self.info[i] = v;
 
         '''
         Set default session timeout.
@@ -550,7 +580,7 @@ class ActionModule(ActionBase):
             j = 0;
             for c in self.keystore:
                 for k in c:
-                    if k not in ['password', 'password_enable']:
+                    if k not in ['password', 'password_enable', 'api_auth_value']:
                         display.vvv('credentials (' + str(j)  + '): ' + str(k) + ': ' + str(c[k]), host=self.info['host']);
                 j += 1;
 
@@ -1933,6 +1963,9 @@ class ActionModule(ActionBase):
         self._remove_non_ascii(fn);
         self.conf['cliset'][cli_id]['lines'] = self._remove_ltr_blanks(fn);
         if self.conf['cliset'][cli_id]['lines'] == 0:
+            #display.v('<' + self.info['host'] + '> testing id: ' + str(cli_id));
+            #display.v('<' + self.info['host'] + '> testing file: ' + str(fn));
+            #display.v('<' + self.info['host'] + '> testing: ' + str(self.conf['cliset'][cli_id]));
             if self.conf['cliset'][cli_id]['allow_empty_response'] == True:
                 return False;
             if self.conf['cliset'][cli_id]['mode'] == 'analytics':
@@ -2189,6 +2222,12 @@ class ActionModule(ActionBase):
 
     @staticmethod
     def _remove_non_ascii(fn):
+        if not os.path.exists(fn):
+            return;
+        if not os.path.isfile(fn):
+            return;
+        if not os.access(fn, os.R_OK):
+            return;
         with open(fn, "r+") as f:
             data = f.read();
             buffer = [];
@@ -2218,8 +2257,16 @@ class ActionModule(ActionBase):
         return;
 
 
-    @staticmethod
-    def _remove_ltr_blanks(fn):
+    def _remove_ltr_blanks(self, fn):
+        if not os.path.exists(fn):
+            display.v('<' + self.info['host'] + '> file does not exist: ' + str(fn));
+            return 0;
+        if not os.path.isfile(fn):
+            display.v('<' + self.info['host'] + '> is not a file: ' + str(fn));
+            return 0;
+        if not os.access(fn, os.R_OK):
+            display.v('<' + self.info['host'] + '> is not readable: ' + str(fn));
+            return 0;
         '''
         This function removes leading and trailing blank lines from a file.
         Additionally, it returns the number of lines in the file.
@@ -2353,12 +2400,33 @@ class ActionModule(ActionBase):
         credentials = [];
         rgx_credentials = {};
         dft_credentials = {};
+        allowed_credentials_fields = [
+            'regex',
+            'username',
+            'password',
+            'password_enable',
+            'priority',
+            'description',
+            'default',
+            'token',
+            'pin',
+            'api_auth_key',
+            'api_auth_value',
+        ];
+        #self.errors.append('XXXX: ' + str(db));
         for c in db:
             for k in c:
-                if k not in ['regex', 'username', 'password', 'password_enable', 'priority', 'description', 'default', 'token', 'pin']:
+                if k not in allowed_credentials_fields:
                     self.errors.append('access credentials dictionary contains invalid key: ' + k);
-            required_keys = ['username', 'password', 'priority'];
+            required_keys = None;
+            required_keys_shell = ['username', 'password', 'priority'];
+            required_keys_api = ['api_auth_key', 'api_auth_value'];
+            if self._is_api_driven:
+                required_keys = copy.deepcopy(required_keys_api);
+            else:
+                required_keys = copy.deepcopy(required_keys_shell);
             for k in required_keys:
+                break;
                 if k not in c:
                     self.errors.append('the "' + str(c) + '" access credentials entry is missing mandatory key "' + k + '"');
                     return None;
@@ -2639,6 +2707,12 @@ class ActionModule(ActionBase):
                             display.vv('duplicate cli command \'' + entry['cli'] + '\'', host=self.info['host']);
                     if self.conf['cliset'][c]['mode'] != entry_mode:
                         if entry_mode == 'noop' or self.conf['cliset'][c]['mode'] == 'noop':
+                            continue;
+                        if 'pre' in entry and 'post' in entry:
+                            _is_duplicate_cli = False;
+                            continue;
+                        if 'saveas' in entry:
+                            _is_duplicate_cli = False;
                             continue;
                         self.errors.append('the plugin does not support the mixing of \'configure\' and \'analytics\' modes in the same run');
                         return False;

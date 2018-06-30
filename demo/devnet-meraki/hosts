@@ -1,0 +1,14 @@
+#
+# DevNet Sandbox
+#
+
+controller ansible_connection=local
+
+[meraki:children]
+meraki-api
+
+[meraki-api]
+meraki-endpoint os=rest api_endpoint="https://dashboard.meraki.com/api/v0"
+
+[meraki:vars]
+ansible_connection=local

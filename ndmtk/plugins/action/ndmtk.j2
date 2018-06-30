@@ -272,8 +272,8 @@ proc parse_cli_prompt {cli_output req} {
             "?" { set line_char_flt "\?"; }
             "*" { set line_char_flt "\\*"; }
             "+" { set line_char_flt "\+"; }
-            "(" { set line_char_flt "\("; }
-            ")" { set line_char_flt "\)"; }
+            "(" { set line_char_flt "\\("; }
+            ")" { set line_char_flt "\\)"; }
             "{" { set line_char_flt "\{"; }
             "}" { set line_char_flt "\}"; }
             default { set line_char_flt $line_char; }
@@ -521,7 +521,7 @@ while 1 {
             }
         }
         -regexp {[#]\s?$} {
-            send_status "pount_prompt:yes";
+            send_status "pound_prompt:yes";
             if { $session_connected == 0 } {
                 send_status "connected:yes";
             }
@@ -692,7 +692,6 @@ while {1} {
     } else {
         send -h "$clitask\n";
     }
-
     if { $host_operating_system == "generic_linux" || $host_operating_system == "opengear_linux" } {
         expect -re "\r\n|\n|\r";
         expect -re $;

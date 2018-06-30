@@ -1,0 +1,201 @@
+---
+#
+# ndmtk - Network Discovery and Management Toolkit
+# Copyright (C) 2016 Paul Greenberg @greenpau
+# See LICENSE.txt for licensing details
+#
+# File: plugins/action/files/cli/os/cisco_ucs.yml
+#
+
+ndmtk:
+- cli: 'show configuration all'
+  tags: 'configuration'
+  paging: 'terminal length 0'
+- cli: 'show version'
+  tags: 'version'
+- description: 'Collect UCS Chassis information'
+  cli: 'show chassis detail'
+  tags: ['version']
+- description: 'Collect firmware information'
+  cli: 'show chassis firmware detail'
+  tags: ['management']
+- description: 'Collect version information'
+  cli: 'show chassis version detail'
+  tags: ['management']
+- description: 'Collect fabric information'
+  cli: 'show chassis fabric detail'
+  tags: ['management']
+- description: 'Collect chassis health information'
+  cli: 'show chassis environment detail'
+  tags: ['management']
+- description: 'Collect chassis health information (IO Module)'
+  cli: 'show chassis environment iom detail'
+  tags: ['management']
+- description: 'Collect chassis health information (Power Supplies)'
+  cli: 'show chassis environment psu detail'
+  tags: ['management']
+- description: 'Collect chassis health information (Fans)'
+  cli: 'show chassis environment fan detail'
+  tags: ['management']
+- description: 'Collect chassis health information (Servers)'
+  cli: 'show chassis environment server detail'
+  tags: ['management']
+- description: 'Collect chassis inventory information'
+  cli: 'show chassis inventory detail'
+  tags: ['inventory']
+- description: 'Collect chassis inventory information (IO Module)'
+  cli: 'show chassis inventory iom detail'
+  tags: ['inventory']
+- description: 'Collect chassis inventory information (Power Supplies)'
+  cli: 'show chassis inventory psu detail'
+  tags: ['inventory']
+- description: 'Collect chassis inventory information (Fans)'
+  cli: 'show chassis inventory fan detail'
+  tags: ['inventory']
+- description: 'Collect chassis inventory information (Servers)'
+  cli: 'show chassis inventory server detail'
+  tags: ['inventory']
+- cli: 'show clock detail'
+  tags: ['clock']
+- cli: 'show cluster state'
+  tags: ['high_availability']
+- cli: 'show cluster extended-state'
+  tags: ['high_availability']
+- cli: 'show eth-uplink detail'
+  tags: ['network']
+- cli: 'show eth-uplink detail expand'
+  tags: ['network']
+- cli: 'show fabric-interconnect detail'
+  tags: ['network']
+- cli: 'show fabric-interconnect environment expand detail'
+  tags: ['network']
+- cli: 'show fabric-interconnect inventory expand detail'
+  tags: ['network']
+- cli: 'show fabric-interconnect mode'
+  tags: ['network']
+- cli: 'show fabric-interconnect mac-aging'
+  tags: ['network']
+- cli: 'show fabric-interconnect version'
+  tags: ['network']
+- cli: 'show fabric-interconnect firmware'
+  tags: ['network']
+- cli: 'show fault'
+  tags: ['management']
+- cli: 'show security detail'
+  tags: ['servers']
+- cli: 'show server inventory expand detail'
+  tags: ['servers']
+- cli: 'show server assoc'
+  tags: ['servers']
+- cli: 'show server boot-order detail'
+  tags: ['servers']
+- cli: 'show server firmware detail'
+  tags: ['servers']
+- cli: 'show server identity'
+  tags: ['servers']
+- cli: 'show server status'
+  tags: ['servers']
+- cli: 'show server status detail'
+  tags: ['servers']
+- cli: 'show server storage detail'
+  tags: ['servers']
+- cli: 'show server version detail'
+  tags: ['servers']
+- cli: 'show service-profile assoc'
+  tags: ['sevice_profile']
+- cli: 'show service-profile assoc detail'
+  tags: ['sevice_profile']
+- cli: 'show service-profile circuit'
+  tags: ['sevice_profile']
+- cli: 'show service-profile circuit detail'
+  tags: ['sevice_profile']
+- cli: 'show service-profile connectivity'
+  tags: ['sevice_profile']
+- cli: 'show service-profile connectivity detail'
+  tags: ['sevice_profile']
+- cli: 'show service-profile identity'
+  tags: ['sevice_profile']
+- cli: 'show service-profile inventory'
+  tags: ['sevice_profile']
+- cli: 'show service-profile inventory expand detail'
+  tags: ['sevice_profile']
+- cli: 'show service-profile path'
+  tags: ['sevice_profile']
+- cli: 'show service-profile path detail'
+  tags: ['sevice_profile']
+- cli: 'show service-profile status'
+  tags: ['sevice_profile']
+- cli: 'show service-profile status expand detail'
+  tags: ['sevice_profile']
+- description: 'Collect configuration from Fabric Interconnect A'
+  pre: 'connect nxos a'
+  cli: 'show running-config'
+  saveas: '%h.connect.nxos.a.show.running-config.txt'
+  post: 'exit'
+  tags: ['network']
+- description: 'Collect version from Fabric Interconnect A'
+  pre: 'connect nxos a'
+  cli: 'show version'
+  saveas: '%h.connect.nxos.a.show.version.txt'
+  post: 'exit'
+  tags: ['network']
+- description: 'Collect interface information from Fabric Interconnect A'
+  pre: 'connect nxos a'
+  cli: 'show interface'
+  saveas: '%h.connect.nxos.a.show.interface.txt'
+  post: 'exit'
+  tags: ['network']
+- description: 'Collect interface SNMP index information from Fabric Interconnect A'
+  pre: 'connect nxos a'
+  cli: 'show interface snmp-ifindex'
+  saveas: '%h.connect.nxos.a.show.interface.snmp-ifindex.txt'
+  post: 'exit'
+  tags: ['network']
+- description: 'Collect MAC address table from Fabric Interconnect A'
+  pre: 'connect nxos a'
+  cli: 'show mac address-table'
+  saveas: '%h.connect.nxos.a.show.mac.address-table.txt'
+  post: 'exit'
+  tags: ['network']
+- description: 'Collect VLAN information from Fabric Interconnect A'
+  pre: 'connect nxos a'
+  cli: 'show vlan'
+  saveas: '%h.connect.nxos.a.show.vlan.txt'
+  post: 'exit'
+  tags: ['network']
+- description: 'Collect configuration from Fabric Interconnect B'
+  pre: 'connect nxos b'
+  cli: 'show running-config'
+  saveas: '%h.connect.nxos.b.show.running-config.txt'
+  post: 'exit'
+  tags: ['network']
+- description: 'Collect version from Fabric Interconnect B'
+  pre: 'connect nxos b'
+  cli: 'show version'
+  saveas: '%h.connect.nxos.b.show.version.txt'
+  post: 'exit'
+  tags: ['network']
+- description: 'Collect interface information from Fabric Interconnect B'
+  pre: 'connect nxos b'
+  cli: 'show interface'
+  saveas: '%h.connect.nxos.b.show.interface.txt'
+  post: 'exit'
+  tags: ['network']
+- description: 'Collect interface SNMP index information from Fabric Interconnect B'
+  pre: 'connect nxos b'
+  cli: 'show interface snmp-ifindex'
+  saveas: '%h.connect.nxos.b.show.interface.snmp-ifindex.txt'
+  post: 'exit'
+  tags: ['network']
+- description: 'Collect MAC address table from Fabric Interconnect B'
+  pre: 'connect nxos b'
+  cli: 'show mac address-table'
+  saveas: '%h.connect.nxos.b.show.mac.address-table.txt'
+  post: 'exit'
+  tags: ['network']
+- description: 'Collect VLAN information from Fabric Interconnect B'
+  pre: 'connect nxos b'
+  cli: 'show vlan'
+  saveas: '%h.connect.nxos.b.show.vlan.txt'
+  post: 'exit'
+  tags: ['network']
