@@ -22,4 +22,3 @@ ndmtk:
 - cli: show multicast route
 - cli: show interfaces statistics
 - cli: show bgp summary
-  capability: router

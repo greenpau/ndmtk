@@ -4,7 +4,7 @@
 # Copyright (C) 2016 Paul Greenberg @greenpau
 # See LICENSE.txt for licensing details
 #
-# File: plugins/action/files/cli/os/junos_qfx.yml
+# File: plugins/action/files/cli/os/junos_mx.yml
 #
 
 ndmtk:
@@ -21,8 +21,5 @@ ndmtk:
 - cli: show ntp status
 - cli: show multicast route
 - cli: show interfaces statistics
-- cli: show vlans
-- cli: show ethernet-switching table
-- cli: show igmp group
 - cli: show igmp interface
 - cli: show bgp summary

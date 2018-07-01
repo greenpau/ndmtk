@@ -49,6 +49,7 @@ allowed_os:
 - name: 'citrix_netscaler'
 - name: 'junos_qfx'
 - name: 'junos_srx'
+- name: 'junos_mx'
 - name: 'generic_linux'
   facts:
   - pattern: '^NAME="?(?P<os_name>.*)["]?$'

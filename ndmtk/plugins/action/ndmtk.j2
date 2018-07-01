@@ -480,12 +480,13 @@ while 1 {
                 send_status "authenticated:yes";
             }
             if { $host_operating_system == "paloalto_panos" || $host_operating_system == "junos_qfx" || $host_operating_system == "junos_srx" || \
+                                                        $host_operating_system == "junos_mx" || \
                                                         $host_operating_system == "citrix_netscaler" || $host_operating_system == "generic_linux" || \
                                                         $host_operating_system == "opengear_linux" || $host_operating_system == "cisco_ironport" } {
                 if { $host_operating_system == "paloalto_panos" } {
                     puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='currently in PAN-OS Operational Mode'";
                 }
-                if { $host_operating_system == "junos_qfx" || $host_operating_system == "junos_srx" } {
+                if { $host_operating_system == "junos_qfx" || $host_operating_system == "junos_srx" || $host_operating_system == "junos_mx" } {
                     puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='currently in Junos OS Operational Mode'";
                 }
                 if { $host_operating_system == "citrix_netscaler" } {

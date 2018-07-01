@@ -26,8 +26,10 @@ import traceback;
 import time;
 from ansible.parsing import vault;
 from ansible.parsing.yaml.loader import AnsibleLoader
-
-
+try:
+    from ansible import constants as C;
+except:
+    pass
 from ansible.cli import CLI;
 from ansible.parsing.dataloader import DataLoader;
 
@@ -57,7 +59,7 @@ class CallbackModule(CallbackBase):
         pass;
 
     def v2_playbook_on_play_start(self, play):
-        _action = 'ndmtk';
+        _action = self.CALLBACK_NAME;
         _trigger = False;
         _tasks_list = play.get_tasks();
         _nodes = [];
@@ -113,7 +115,11 @@ class CallbackModule(CallbackBase):
             if not _user_home:
                 raise AnsibleError("failed to determine user's home directory");
             self._ndmtk_play_uuid = str(uuid.uuid1());
-            self._ndmtk_user_home = _user_home;
+            try:
+                (head, tail) = os.path.split(C.DEFAULT_LOCAL_TMP)
+                self._ndmtk_user_home = os.path.join(head, self.CALLBACK_NAME)
+            except:
+                self._ndmtk_user_home = os.path.join(_user_home, '.ansible', 'tmp', self.CALLBACK_NAME);
             self._ndmtk_dirs = [];
             '''
             Retrieve authentication credentials.
@@ -125,10 +131,10 @@ class CallbackModule(CallbackBase):
             self._ndmtk_secrets = self._load_auth_secrets(_nodes, _secrets);
             if hasattr(self, '_ndmtk_debug'):
                 if self._ndmtk_debug:
-                    _play_tmpdir = os.path.join(self._ndmtk_user_home, '.ansible', 'tmp', 'ndmtk', str(self._ndmtk_play_uuid));
+                    _play_tmpdir = os.path.join(self._ndmtk_user_home, str(self._ndmtk_play_uuid));
                     display.display('temporary playbook directory: "' + _play_tmpdir + '" directory', color='yellow');
                     display.display("play data:\n" + pprint.pformat(_play_data, indent=4), color='yellow');
-            _play_tmpdir = os.path.join(self._ndmtk_user_home, '.ansible', 'tmp', 'ndmtk', str(self._ndmtk_play_uuid));
+            _play_tmpdir = os.path.join(self._ndmtk_user_home, str(self._ndmtk_play_uuid));
             display.display('<ndmtk> temporary directory: "' + _play_tmpdir + '" directory', color='green');
         pass;
 
@@ -141,7 +147,7 @@ class CallbackModule(CallbackBase):
             task.args['task_uuid'] = str(uuid.uuid1());
             if hasattr(self, '_ndmtk_secrets'):
                 task.args['credentials'] = self._ndmtk_secrets;
-            _task_tmpdir = os.path.join(self._ndmtk_user_home, '.ansible', 'tmp', 'ndmtk', task.args['play_uuid'], task.args['task_uuid']);
+            _task_tmpdir = os.path.join(self._ndmtk_user_home, task.args['play_uuid'], task.args['task_uuid']);
             _task_data = task.serialize();
             if 'args' in _task_data:
                 for i in ['output', 'output_dir']:

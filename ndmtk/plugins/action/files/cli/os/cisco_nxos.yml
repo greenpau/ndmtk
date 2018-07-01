@@ -241,6 +241,8 @@ ndmtk:
   tags: ['vxlan']
   conditions_match_any:
   - '^router bgp'
+  success_if:
+  - '.*'
 - description: 'Collects MAC addresses of end hosts across all BGP EVPN instances (EVIs)'
   cli: 'show l2route evpn mac all'
   tags: ['vxlan']
@@ -457,6 +459,8 @@ ndmtk:
 - description: 'Collect system processes'
   cli: 'show process'
   tags: ['process']
+  success_if:
+  - '.*'
 
 - cli: 'show ip ospf vrf all'
   tags: ['routing', 'ospf']

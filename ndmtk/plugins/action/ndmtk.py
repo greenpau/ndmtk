@@ -254,6 +254,10 @@ import datetime;
 import errno;
 import stat;
 from collections import OrderedDict;
+try:
+    from ansible import constants as C;
+except:
+    pass
 from ansible.errors import AnsibleError;
 from ansible.plugins.action import ActionBase;
 try:
@@ -390,7 +394,11 @@ class ActionModule(ActionBase):
         '''
         Create a temporary directory for command-line output.
         '''
-        self.conf['temp_dir'] = os.path.join(os.getenv("HOME"), '.ansible', 'tmp', self.plugin_name, self.conf['play_uuid'], self.conf['task_uuid'], self.info['host']);
+        try:
+            (head, tail) = os.path.split(C.DEFAULT_LOCAL_TMP)
+            self.conf['temp_dir'] = os.path.join(head, self.plugin_name, self.conf['play_uuid'], self.conf['task_uuid'], self.info['host']);
+        except:
+            self.conf['temp_dir'] = os.path.join(os.getenv("HOME"), '.ansible', 'tmp', self.plugin_name, self.conf['play_uuid'], self.conf['task_uuid'], self.info['host']);
         try:
             os.makedirs(self.conf['temp_dir']);
         except OSError as exception:
