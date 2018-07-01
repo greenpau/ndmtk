@@ -23,7 +23,7 @@ COPY demo/firewall/files/ndmtk/spec/*.yml /etc/ansible/files/ndmtk/spec/
 COPY demo/firewall/files/ndmtk/os/*.yml /etc/ansible/files/ndmtk/os/
 COPY demo/firewall/files/ndmtk/host/*.yml /etc/ansible/files/ndmtk/host/
 COPY demo/firewall/files/ndmtk/exceptions.yml /etc/ansible/files/ndmtk/
-COPY dist/ndmtk-0.1.9.tar.gz /usr/local/src/
-RUN  pip install /usr/local/src/ndmtk-0.1.9.tar.gz
+COPY dist/ndmtk-0.2.0.tar.gz /usr/local/src/
+RUN  pip install /usr/local/src/ndmtk-0.2.0.tar.gz
 
 ENTRYPOINT ["/bin/sh"]

@@ -43,14 +43,16 @@ First, the maintainer MUST change the value of the `PLUGIN_VER` in
 across the entire project, e.g. CI and Dockerfile references.
 
 ```
-PLUGIN_VER=0.7
+PLUGIN_VER=0.2.0
 ```
 
 After that, the maintainer runs `make` to update version references and
 create new documentation.:
 
-```
+```bash
 make package
+git add .
+git commit -m 'release: 0.2.0'
 ```
 
 Then, the maintainer creates a release PR.
@@ -64,8 +66,8 @@ A maintainer should have the following information before cutting a release:
 Next, the maintainer tags the release with an appropriate version and name.
 The maintainer pushes the tags to upstream.
 
-```
-git tag -a v0.1.1 -m "Robin Release"
+```bash
+git tag -a v0.2.0 -m "Toucan Release"
 git push
 git push --tags
 ```
