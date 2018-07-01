@@ -72,21 +72,10 @@ git push
 git push --tags
 ```
 
-Next, the maintainer should upload the new release to PyPi:
-
-```
-python setup.py sdist upload -r pypitest
-```
-
-Then, the maintainer should review the project's
-[Test PyPi](https://testpypi.python.org/pypi/ndmtk/) page.
+Next, the maintainer should upload the new release to Test PyPi.
 
 Once the maintainer validated that Test PyPi looks as expected, the maintainer
 pushes the code to the main PyPi repository.
-
-```
-python setup.py sdist upload -r pypi
-```
 
 ## PyPi Management
 
@@ -104,15 +93,15 @@ The names `pypi` and `pypitest` are references from `~/.pypirc` configuration fi
 [distutils]
 index-servers =
     pypi
-    pypitest
+    testpypi
 
 [pypi]
-repository = https://pypi.python.org/pypi
+repository = https://upload.pypi.org/legacy/
 username = USERNAME
 password = PASSWORD
 
-[pypitest]
-repository = https://testpypi.python.org/pypi
+[testpypi]
+repository: https://test.pypi.org/legacy/
 username = USERNAME
 password = PASSWORD
 ```
@@ -120,11 +109,11 @@ password = PASSWORD
 Prior to uploading the module to PyPi, test it with PyPi Test:
 
 ```
-python setup.py sdist upload -r pypitest
+twine upload --repository testpypi dist/*
 ```
 
-Once successfully tested, upload it to [PyPi](https://pypi.python.org):
+Once successfully tested, upload it to [PyPi](https://pypi.org):
 
 ```
-python setup.py sdist upload -r pypi
+twine upload --repository pypi dist/*
 ```
