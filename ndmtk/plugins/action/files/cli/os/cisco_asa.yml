@@ -8,10 +8,9 @@
 #
 ndmtk:
 - cli: show running-config
-  tags: configuration
-  paging: 'terminal pager 0'
+  tags: ['ref:configuration', 'ref:version']
 - cli: show version
-  tags: version
+  tags: ['ref:version']
 - cli: show arp
 - cli: show clock
 - cli: show ntp associations
@@ -25,6 +24,8 @@ ndmtk:
 - cli: show access-list
   conditions_match_any:
   - '^access-list'
+  success_if:
+  - '.*'
 - cli: show ip address
 - cli: show module all
 - cli: show failover
@@ -96,10 +97,3 @@ ndmtk:
       format: 'txt'
       success_if:
       - '.*'
-
-
-
-
-
-
-

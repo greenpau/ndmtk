@@ -667,9 +667,11 @@ while {1} {
                 }
             }
             if { $_break_exec == "yes" } {
+                puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='received break execution'";
                 break;
             }
             if { $_goto_next == "yes" } {
+                puts $session_log "timestamp='[exec date]' transaction_id='$transaction_id' msg='received go to next'";
                 continue;
             }
         }

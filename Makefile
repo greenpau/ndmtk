@@ -1,4 +1,4 @@
-.PHONY: docker-build docker-run docker-clean build run clean connect docs
+.PHONY: docker-build docker-run docker-clean build run clean connect docs package status
 
 export USER
 PLUGIN_NAME="ndmtk"
@@ -70,3 +70,7 @@ docs:
 	@cp LICENSE.txt ${PLUGIN_NAME}/LICENSE.txt
 	@cd docs && eval ${DOCKER_BINARY} build -t greenpau/ndmtk-docs .
 	@echo "run 'docker run --rm -p 8000:8000 greenpau/ndmtk-docs' and review documentation at 'http://localhost:8000'"
+
+qtest:
+	@sudo cp ndmtk/plugins/analytics/*.py /usr/lib/python2.7/site-packages/ndmtk/plugins/analytics/
+	@utils/ndmtk-analytics -i ~/dev/tmp/interfaces/ -l 2

@@ -8,21 +8,56 @@
 #
 
 ndmtk:
-- cli: show config running
-  tags: configuration
-  paging: 'set cli pager off'
-  scripting: 'set cli scripting-mode on'
-- cli: show system info
-  tags: version
-- cli: show session info
-- cli: show interface all
-- cli: show routing route
-- cli: show routing protocol bgp summary
-- cli: show routing protocol bgp peer
-- cli: show arp all
-- cli: show mac all
-- cli: show running nat-policy
-- cli: show running security-policy
-- cli: show running pbf-policy
-- cli: show system services
-- cli: show routing protocol bgp summary
+- cli: 'show config running'
+  tags: ['ref:configuration']
+- cli: 'show system info'
+  tags: ['ref:version']
+- cli: 'show system services'
+- cli: 'show interface all'
+- cli: 'show session meter'
+- cli: 'show system disk-space files'
+- cli: 'show system logdb-quota'
+- cli: 'show system software status'
+- cli: 'show session info'
+- cli: 'show admins all'
+- cli: 'show user user-id-agent state all'
+- cli: 'show user server-monitor state all'
+- cli: 'show user server-monitor statistics'
+- cli: 'show user group-mapping statistics'
+- cli: 'show user group-mapping state all'
+- cli: 'show user group list'
+- cli: 'show user ip-user-mapping all'
+- cli: 'show routing route'
+- cli: 'show routing fib'
+- cli: 'show running nat-policy'
+- cli: 'show running ippool'
+- cli: 'show running global-ippool'
+- cli: 'show running security-policy'
+- cli: 'show running pbf-policy'
+- cli: 'show routing protocol bgp summary'
+- cli: 'show routing protocol bgp peer'
+- cli: 'show vpn flow'
+- cli: 'show vpn gateway'
+- cli: 'show vpn ike-sa'
+- cli: 'show vpn ipsec-sa'
+- cli: 'show vpn tunnel'
+- cli: 'show counter global'
+- cli: 'show vlan all'
+- cli: 'show netstat statistics yes'
+- cli: 'show arp all dns no'
+- cli: 'show high-availability all'
+- cli: 'show lldp neighbors all'
+- cli: 'show lldp config all'
+- cli: 'show lldp counters all'
+- cli: 'show lldp local all'
+- cli: 'show logging-status'
+- cli: 'show mac all'
+- cli: 'show panorama-status'
+- cli: 'show routing summary'
+- cli: 'show routing route'
+- cli: 'show wildfire status'
+- cli: 'show wildfire statistics'
+- cli: 'show zone-protection'
+- cli: 'show virtual-wire all'
+- cli: 'show config running'
+- cli: 'show chassis inventory'

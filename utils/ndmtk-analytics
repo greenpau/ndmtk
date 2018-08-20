@@ -1,0 +1,170 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from __future__ import (absolute_import, division, print_function);
+
+__author__ = "Paul Greenberg @greenpau";
+__version__ = "1.0";
+__maintainer__ = "Paul Greenberg";
+__email__ = "greenpau@outlook.com";
+__status__ = "Alpha";
+
+import os;
+import sys;
+import argparse;
+import logging;
+import pprint;
+import yaml;
+import json
+from ndmtk.plugins.analytics.toolkit import ToolkitDatabase;
+
+__project_name__ = str(os.path.basename(__file__)).replace('.pyc', '').replace('.py', '');
+__project_description__ = "ndmTk Analytics";
+
+logging.basicConfig(stream=sys.stdout, level=logging.WARNING, format= __project_name__ + ' | %(asctime)s | %(levelname)s | %(message)s');
+log = logging.getLogger(__file__);
+
+
+def main():
+    global log;
+    descr = "%s - %s\n\n" % (__project_name__, __project_description__);
+    epil = '\ncontacts: %s\n\n' % (__author__);
+
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
+                                     description=descr, epilog=epil);
+    main_group = parser.add_argument_group(None);
+    main_group.add_argument('-i', metavar='DIR', dest='input_dir', type=str,
+                            default=None, help='input data directory');
+    main_group.add_argument('-o', metavar='output', dest='output', type=argparse.FileType('w'),
+                            default=sys.stdout, help='Write to output file (or stdout)')
+    main_group.add_argument('--format', dest='output_fmt', choices=['json', 'csv', 'yaml'],
+                            default="json", help='Output format')
+    
+    filter_group = parser.add_argument_group('Filtering');
+    filter_group.add_argument('--filter-host', dest='filter_host', metavar='PATTERN', type=str,
+                            help='Filter by hostname')
+
+    query_group = parser.add_mutually_exclusive_group(required=False)
+    query_group.add_argument('--device-info', dest='dev_info', action='store_true',
+                            help='Get device information')
+    query_group.add_argument('--ip-interfaces', dest='ip_interfaces', action='store_true',
+                            help='Get interface IP address')
+    query_group.add_argument('--interface-props', dest='interface_props', action='store_true',
+                            help='Get interface properties')
+    query_group.add_argument('--arp-entries', dest='arp_entries', action='store_true',
+                            help='Get ARP entries')
+    query_group.add_argument('--syslog-servers', dest='syslog_servers', action='store_true',
+                            help='Get syslog servers')
+    query_group.add_argument('--snmp-servers', dest='snmp_servers', action='store_true',
+                            help='Get SNMP servers')
+    query_group.add_argument('--ntp-servers', dest='ntp_servers', action='store_true',
+                            help='Get NTP servers')
+    query_group.add_argument('--aaa-servers', dest='aaa_servers', action='store_true',
+                            help='Get AAA servers, e.g. TACACS+ and RADIUS')
+    query_group.add_argument('--local-users', dest='local_users', action='store_true',
+                            help='Get local users')
+    query_group.add_argument('--lldp-neighbors', dest='lldp_neighbors', action='store_true',
+                            help='Get LLDP neighbors')
+    query_group.add_argument('--ospf-neighbors', dest='ospf_neighbors', action='store_true',
+                            help='Get OSPF neighbors')
+    query_group.add_argument('--edge-discovery', dest='edge_discovery', action='store_true',
+                            help='Get network edge, visibility gaps analytics')
+    prep_group =  parser.add_argument_group('Preprocessing');
+    prep_group.add_argument('--sanitize-json', dest='sanitize_json', action='store_true',
+                             help='Perform JSON cleanup');
+    
+    misc_group = parser.add_argument_group('Miscellaneous');
+    misc_group.add_argument('--mac-vendor-ref', dest='mac_vendor_ref', metavar='FILE_PATH', type=argparse.FileType('r'),
+                            default=None, help='Perform vendor lookup for MAC addresses based on OUI file.');
+    misc_group.add_argument('--arp-table-ref', dest='arp_table_ref', metavar='FILE_PATH', type=argparse.FileType('r'),
+                            default=None, help='ARP data necessary for network boundary assessment')
+    misc_group.add_argument('--ip-interface-ref', dest='ip_interface_ref', metavar='FILE_PATH', type=argparse.FileType('r'),
+                            default=None, help='IP interface address data necessary for network boundary assessment')
+    misc_group.add_argument('--lldp-neighbor-ref', dest='lldp_neighbor_ref', metavar='FILE_PATH', type=argparse.FileType('r'),
+                            default=None, help='LLDP neighbor data necessary for network boundary assessment')
+    misc_group.add_argument('--ospf-neighbor-ref', dest='ospf_neighbor_ref', metavar='FILE_PATH', type=argparse.FileType('r'),
+                            default=None, help='OSPF neighbor topology data necessary for network boundary assessment')
+
+    logging_group = parser.add_argument_group('Logging and Debugging');
+    logging_group.add_argument('-l', '--log-level', dest='log', metavar='LEVEL', type=int, default=0, \
+                            choices=range(1, 3), help='Log level (default: 0, max: 2)');
+
+    args = parser.parse_args();
+
+    if not args.input_dir:
+        if args.edge_discovery:
+            pass
+        else:
+            raise Exception('parser', '--input-dir is required')
+
+    opts = {}
+    if args.output_fmt:
+        opts['output_fmt'] = args.output_fmt
+
+    if args.log == 1:
+        log.setLevel(logging.INFO);
+        logging.getLogger("ToolkitDatabase").setLevel(logging.INFO);
+    elif args.log == 2:
+        log.setLevel(logging.DEBUG);
+        logging.getLogger("ToolkitDatabase").setLevel(logging.DEBUG);
+    else:
+        log.setLevel(logging.WARNING);
+        logging.getLogger("ToolkitDatabase").setLevel(logging.WARNING);
+
+    log.debug("initializing ...")
+    tk = ToolkitDatabase(data_dir=args.input_dir, host_filter=args.filter_host);
+    log.debug("initialized!")
+    data = None
+    if args.ip_interfaces:
+        data = tk.get_ip_interfaces(opts)
+    elif args.interface_props:
+        data = tk.get_interface_props(opts)
+    elif args.dev_info:
+        data = tk.get_device_info(opts)
+    elif args.arp_entries:
+        if args.mac_vendor_ref:
+            opts['resolve_mac_vendor'] = True
+            opts['mac_vendor_file'] = args.mac_vendor_ref
+        data = tk.get_arp_entries(opts)
+    elif args.syslog_servers:
+        data = tk.get_syslog_servers(opts)
+    elif args.snmp_servers:
+        data = tk.get_snmp_servers(opts)
+    elif args.ntp_servers:
+        data = tk.get_ntp_servers(opts)
+    elif args.aaa_servers:
+        data = tk.get_aaa_servers(opts)
+    elif args.local_users:
+        data = tk.get_local_users(opts)
+    elif args.lldp_neighbors:
+        data = tk.get_lldp_neighbors(opts)
+    elif args.ospf_neighbors:
+        data = tk.get_ospf_neighbors(opts)
+    elif args.edge_discovery:
+        if args.arp_table_ref:
+            opts['arp_table_ref'] = args.arp_table_ref
+        if args.ip_interface_ref:
+            opts['ip_interface_ref'] = args.ip_interface_ref
+        else:
+            raise Exception('parser', 'edge discovery requires --ip-interface-ref')
+        if args.ospf_neighbor_ref:
+            opts['ospf_neighbor_ref'] = args.ospf_neighbor_ref
+        if args.lldp_neighbor_ref:
+            opts['lldp_neighbor_ref'] = args.lldp_neighbor_ref
+        data = tk.get_edge_discovery(opts)
+    else:
+        raise Exception('parser', 'unsupported query')
+
+    if not data:
+        log.error('no data')
+        sys.exit(1)
+
+    if args.output_fmt == 'yaml':
+        yaml.dump(data, args.output, default_flow_style=False)
+    elif args.output_fmt == 'json':
+        json.dump(data, args.output, sort_keys=True, indent=4, separators=(',', ': '))
+    else:
+        args.output.write(data)
+
+if __name__ == '__main__':
+    main();

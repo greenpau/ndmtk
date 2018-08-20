@@ -8,12 +8,12 @@
 #
 
 ndmtk:
-- cli: show configuration | display set
-  tags: configuration
-  paging: 'set cli screen-length 0'
-- cli: show version
-  tags: version
-- cli: show route
+- cli: 'show configuration | display set'
+  tags: ['ref:configuration']
+- cli: 'show version'
+  tags: ['ref:version']
+- cli: 'show route detail'
+  tags: ['routing']
 - cli: show system uptime
 - cli: show arp no-resolve
 - cli: show chassis hardware detail
@@ -23,3 +23,27 @@ ndmtk:
 - cli: show interfaces statistics
 - cli: show igmp interface
 - cli: show bgp summary
+- cli: 'show lldp neighbors'
+  tags: ['lldp']
+  conditions_match_any:
+  - '^set protocols lldp'
+- cli: 'show lldp detail'
+  tags: ['lldp']
+  conditions_match_any:
+  - '^set protocols lldp'
+- cli: 'show lldp local-information'
+  tags: ['lldp']
+  conditions_match_any:
+  - '^set protocols lldp'
+- cli: 'show lldp statistics'
+  tags: ['lldp']
+  conditions_match_any:
+  - '^set protocols lldp'
+- cli: 'show ospf route detail'
+  tags: ['routing', 'ospf']
+  conditions_match_any:
+  - '^set protocols ospf'
+- cli: 'show ospf neighbor detail'
+  tags: ['routing', 'ospf']
+  conditions_match_any:
+  - '^set protocols ospf'

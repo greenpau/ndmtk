@@ -8,11 +8,10 @@
 #
 
 ndmtk:
-- cli: show ns runningConfig
-  tags: configuration
-  paging: 'set cli mode -page OFF'
-- cli: show version
-  tags: version
+- cli: 'show ns runningConfig'
+  tags: ['ref:configuration', 'ref:version']
+- cli: 'show version'
+  tags: ['ref:version']
 - cli: show ns mode
 - cli: show license
 - cli: show ns mode
@@ -24,4 +23,4 @@ ndmtk:
 - cli: show interface
 - cli: show ip
 - cli: show route
-- cli: show ns savedConfig
+- cli: 'show ns savedConfig'
