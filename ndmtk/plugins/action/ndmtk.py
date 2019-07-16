@@ -2348,7 +2348,7 @@ class ActionModule(ActionBase):
         fc = None;
         try:
             with open(self.plugin_conf) as f:
-                fc = yaml.load(f);
+                fc = yaml.load(f, Loader=yaml.FullLoader);
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info();
             display.v('an attempt to read ' + self.plugin_name + ' configuration data from ' + str(self.plugin_conf) + ' failed.', host=self.info['host']);
@@ -2371,7 +2371,7 @@ class ActionModule(ActionBase):
         fc = None;
         try:
             with open(self.conf['cliset_exc']) as f:
-                fc = yaml.load(f);
+                fc = yaml.load(f, Loader=yaml.FullLoader);
         except:
             return;
         optional_fields = ['host', 'cli', 'os', 'description'];
@@ -2532,7 +2532,7 @@ class ActionModule(ActionBase):
         fc = None;
         try:
             with open(fn) as f:
-                fc = yaml.load(f);
+                fc = yaml.load(f, Loader=yaml.FullLoader);
         except:
             self.errors.append('an attempt to read ' + self.plugin_name + ' data from ' + str(fn) + ' failed.');
             exc_type, exc_value, exc_traceback = sys.exc_info();

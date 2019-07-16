@@ -182,7 +182,7 @@ class ToolkitDatabase(object):
                     fc = None;
                     with open(origFilePath, "r") as f:
                         try:
-                            fc = yaml.load(f);
+                            fc = yaml.load(f, Loader=yaml.FullLoader);
                         except:
                             err = ToolkitError(sys.exc_info());
                             self.log.error(err);
