@@ -1876,7 +1876,7 @@ class ToolkitDatabase(object):
                     lines.append('')
                     lines.append('host: %s' % (h))
                     for n in edge_nodes[h]:
-                        lines.append('  interface: %s (ip address: %s, network: %s, MAC: %s)' % (n['name'], n['ip_address'], n['ip_network'], n['mac_address']))
+                        lines.append('  interface: %s (ip address: %s, network: %s, MAC: %s)' % (n['name'], n['ip_address'], n['ip_network'], n.get('mac_address', 'UNKNOWN')))
                         if 'state' in n:
                             if n['state'] != 'up':
                                 lines.append('    Removal candidate. Status: %s' % (n['state']))
