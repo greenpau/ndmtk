@@ -25,6 +25,7 @@ from datetime import datetime;
 import pprint;
 import socket
 import struct
+import hashlib
 
 class ToolkitError:
     def __init__(self, err):
@@ -1013,6 +1014,25 @@ class ToolkitDatabase(object):
                             line.append('')
                     lines.append(';'.join(line))
                 return '\n'.join(lines) + '\n'
+            if opts['output_fmt'] == 'elasticsearch':
+                lines = []
+                for item in output:
+                    _id_arr = []
+                    for i in ['host', 'name', 'mac_address', 'ip_address']:
+                        if i not in item:
+                            continue
+                        _id_arr.append(item[i])
+                    header = {
+                        "index": {
+                            "_index": opts['elasticsearch_index'],
+                            "_type" : "ip_interfaces",
+                            "_id" : hashlib.md5('|'.join(_id_arr)).hexdigest()
+                        }
+                    }
+                    item['@timestamp'] = opts['elasticsearch_timestamp']
+                    lines.append(json.dumps(header))
+                    lines.append(json.dumps(item))
+                return '\n'.join(lines) + '\n'
         return output
 
     def get_lldp_neighbors(self, opts={}):
@@ -1067,6 +1087,25 @@ class ToolkitDatabase(object):
                             line.append('')
                     lines.append(';'.join(line))
                 return '\n'.join(lines) + '\n'
+            if opts['output_fmt'] == 'elasticsearch':
+                lines = []
+                for item in output:
+                    _id_arr = []
+                    for i in ['host', 'neighbor', 'local_interface', 'neighbor_interface']:
+                        if i not in item:
+                            continue
+                        _id_arr.append(item[i])
+                    header = {
+                        "index": {
+                            "_index": opts['elasticsearch_index'],
+                            "_type" : "lldp_neighbors",
+                            "_id" : hashlib.md5('|'.join(_id_arr)).hexdigest()
+                        }
+                    }
+                    item['@timestamp'] = opts['elasticsearch_timestamp']
+                    lines.append(json.dumps(header))
+                    lines.append(json.dumps(item))
+                return '\n'.join(lines) + '\n' 
         return output
 
     def get_ospf_neighbors(self, opts={}):
@@ -1120,6 +1159,25 @@ class ToolkitDatabase(object):
                         else:
                             line.append('')
                     lines.append(';'.join(line))
+                return '\n'.join(lines) + '\n'
+            if opts['output_fmt'] == 'elasticsearch':
+                lines = []
+                for item in output:
+                    _id_arr = []
+                    for i in ['host', 'router_id', 'address', 'adjacent', 'area', 'bdr', 'dr', 'interface']:
+                        if i not in item:
+                            continue
+                        _id_arr.append(item[i])
+                    header = {
+                        "index": {
+                            "_index": opts['elasticsearch_index'],
+                            "_type" : "ospf_neighbors",
+                            "_id" : hashlib.md5('|'.join(_id_arr)).hexdigest()
+                        }
+                    }
+                    item['@timestamp'] = opts['elasticsearch_timestamp']
+                    lines.append(json.dumps(header))
+                    lines.append(json.dumps(item))
                 return '\n'.join(lines) + '\n'
         return output
 
@@ -1175,6 +1233,25 @@ class ToolkitDatabase(object):
                             line.append('')
                     lines.append(';'.join(line))
                 return '\n'.join(lines) + '\n'
+            if opts['output_fmt'] == 'elasticsearch':
+                lines = []
+                for item in output:
+                    _id_arr = []
+                    for i in ['host', 'ntp_server']:
+                        if i not in item:
+                            continue
+                        _id_arr.append(item[i])
+                    header = {
+                        "index": {
+                            "_index": opts['elasticsearch_index'],
+                            "_type" : "ntp_servers",
+                            "_id" : hashlib.md5('|'.join(_id_arr)).hexdigest()
+                        }
+                    }
+                    item['@timestamp'] = opts['elasticsearch_timestamp']
+                    lines.append(json.dumps(header))
+                    lines.append(json.dumps(item))
+                return '\n'.join(lines) + '\n'
         return output
 
     def get_aaa_servers(self, opts={}):
@@ -1225,6 +1302,25 @@ class ToolkitDatabase(object):
                         else:
                             line.append('')
                     lines.append(';'.join(line))
+                return '\n'.join(lines) + '\n'
+            if opts['output_fmt'] == 'elasticsearch':
+                lines = []
+                for item in output:
+                    _id_arr = []
+                    for i in ['host', 'server', 'port']:
+                        if i not in item:
+                            continue
+                        _id_arr.append(item[i])
+                    header = {
+                        "index": {
+                            "_index": opts['elasticsearch_index'],
+                            "_type" : "aaa_servers",
+                            "_id" : hashlib.md5('|'.join(_id_arr)).hexdigest()
+                        }
+                    }
+                    item['@timestamp'] = opts['elasticsearch_timestamp']
+                    lines.append(json.dumps(header))
+                    lines.append(json.dumps(item))
                 return '\n'.join(lines) + '\n'
         return output
 
@@ -1277,6 +1373,25 @@ class ToolkitDatabase(object):
                             line.append('')
                     lines.append(';'.join(line))
                 return '\n'.join(lines) + '\n'
+            if opts['output_fmt'] == 'elasticsearch':
+                lines = []
+                for item in output:
+                    _id_arr = []
+                    for i in ['host', 'username', 'class', 'authentication']:
+                        if i not in item:
+                            continue
+                        _id_arr.append(item[i])
+                    header = {
+                        "index": {
+                            "_index": opts['elasticsearch_index'],
+                            "_type" : "local_users",
+                            "_id" : hashlib.md5('|'.join(_id_arr)).hexdigest()
+                        }
+                    }
+                    item['@timestamp'] = opts['elasticsearch_timestamp']
+                    lines.append(json.dumps(header))
+                    lines.append(json.dumps(item))
+                return '\n'.join(lines) + '\n'
         return output
 
     def get_syslog_servers(self, opts={}):
@@ -1312,6 +1427,7 @@ class ToolkitDatabase(object):
                 self.log.error('host %s does not support syslog server extraction' % (h));
                 continue
         output = []
+
         for h in servers:
             for entry in servers[h]:
                 entry['host'] = h
@@ -1329,6 +1445,25 @@ class ToolkitDatabase(object):
                         else:
                             line.append('')
                     lines.append(';'.join(line))
+                return '\n'.join(lines) + '\n'
+            if opts['output_fmt'] == 'elasticsearch':
+                lines = []
+                for item in output:
+                    _id_arr = []
+                    for i in ['host', 'destination']:
+                        if i not in item:
+                            continue
+                        _id_arr.append(item[i])
+                    header = {
+                        "index": {
+                            "_index": opts['elasticsearch_index'],
+                            "_type" : "syslog_servers",
+                            "_id" : hashlib.md5('|'.join(_id_arr)).hexdigest()
+                        }
+                    }
+                    item['@timestamp'] = opts['elasticsearch_timestamp']
+                    lines.append(json.dumps(header))
+                    lines.append(json.dumps(item))
                 return '\n'.join(lines) + '\n'
         return output
 
@@ -1399,7 +1534,25 @@ class ToolkitDatabase(object):
                                 _found = True
                     if not _found:
                         lines.append(';'.join([item['host'], 'snmp_community', 'NONE']))
-
+                return '\n'.join(lines) + '\n'
+            if opts['output_fmt'] == 'elasticsearch':
+                lines = []
+                for item in output:
+                    _id_arr = []
+                    for i in ['host']:
+                        if i not in item:
+                            continue
+                        _id_arr.append(item[i])
+                    header = {
+                        "index": {
+                            "_index": opts['elasticsearch_index'],
+                            "_type" : "syslog_servers",
+                            "_id" : hashlib.md5('|'.join(_id_arr)).hexdigest()
+                        }
+                    }
+                    item['@timestamp'] = opts['elasticsearch_timestamp']
+                    lines.append(json.dumps(header))
+                    lines.append(json.dumps(item))
                 return '\n'.join(lines) + '\n'
         return output
 
@@ -1457,6 +1610,25 @@ class ToolkitDatabase(object):
                         line.append(k)
                         line.append(str(item[k]))
                         lines.append(';'.join(line))
+                return '\n'.join(lines) + '\n'
+            if opts['output_fmt'] == 'elasticsearch':
+                lines = []
+                for item in output:
+                    _id_arr = []
+                    for i in ['host', 'interface_name']:
+                        if i not in item:
+                            continue
+                        _id_arr.append(item[i])
+                    header = {
+                        "index": {
+                            "_index": opts['elasticsearch_index'],
+                            "_type" : "interface_props",
+                            "_id" : hashlib.md5('|'.join(_id_arr)).hexdigest()
+                        }
+                    }
+                    item['@timestamp'] = opts['elasticsearch_timestamp']
+                    lines.append(json.dumps(header))
+                    lines.append(json.dumps(item))
                 return '\n'.join(lines) + '\n'
         return output
 
@@ -1588,6 +1760,26 @@ class ToolkitDatabase(object):
                             line.append('')
                     lines.append(';'.join(line))
                 return '\n'.join(lines) + '\n'
+            if opts['output_fmt'] == 'elasticsearch':
+                lines = []
+                for item in output:
+                    _id_arr = []
+                    for i in ['host', 'interface', 'ip_address', 'mac_address']:
+                        if i not in item:
+                            continue
+                        _id_arr.append(item[i])
+                    header = {
+                        "index": {
+                            "_index": opts['elasticsearch_index'],
+                            "_type" : "arp_entries",
+                            "_id" : hashlib.md5('|'.join(_id_arr)).hexdigest()
+                        }
+                    }
+                    item['@timestamp'] = opts['elasticsearch_timestamp']
+                    lines.append(json.dumps(header))
+                    lines.append(json.dumps(item))
+                return '\n'.join(lines) + '\n'
+
         return output
 
     def get_device_info(self, opts={}):
@@ -1627,6 +1819,25 @@ class ToolkitDatabase(object):
                         else:
                             line.append('')
                     lines.append(';'.join(line))
+                return '\n'.join(lines) + '\n'
+            if opts['output_fmt'] == 'elasticsearch':
+                lines = []
+                for item in items:
+                    _id_arr = []
+                    for i in ['conf_host', 'conf_host_overwrite', 'fact_hostname']:
+                        if i not in item:
+                            continue
+                        _id_arr.append(item[i])
+                    header = {
+                        "index": {
+                            "_index": opts['elasticsearch_index'],
+                            "_type" : "device_info",
+                            "_id" : hashlib.md5('|'.join(_id_arr)).hexdigest()
+                        }
+                    }
+                    item['@timestamp'] = opts['elasticsearch_timestamp']
+                    lines.append(json.dumps(header))
+                    lines.append(json.dumps(item))
                 return '\n'.join(lines) + '\n'
         return items
 

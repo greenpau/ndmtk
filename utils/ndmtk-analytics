@@ -37,7 +37,7 @@ def main():
                             default=None, help='input data directory');
     main_group.add_argument('-o', metavar='output', dest='output', type=argparse.FileType('w'),
                             default=sys.stdout, help='Write to output file (or stdout)')
-    main_group.add_argument('--format', dest='output_fmt', choices=['json', 'csv', 'yaml'],
+    main_group.add_argument('--format', dest='output_fmt', choices=['json', 'csv', 'yaml', 'elasticsearch'],
                             default="json", help='Output format')
     
     filter_group = parser.add_argument_group('Filtering');
@@ -85,6 +85,12 @@ def main():
     misc_group.add_argument('--ospf-neighbor-ref', dest='ospf_neighbor_ref', metavar='FILE_PATH', type=argparse.FileType('r'),
                             default=None, help='OSPF neighbor topology data necessary for network boundary assessment')
 
+
+    main_group.add_argument('--elasticsearch-index', metavar='INDEX_NAME', dest='elasticsearch_index', type=str,
+                            default=None, help='The name of Elasticsearch index');
+    main_group.add_argument('--elasticsearch-timestamp', metavar='TIMESTAMP', dest='elasticsearch_timestamp', type=str,
+                            default=None, help='The timestamp for Elasticsearch index');
+
     logging_group = parser.add_argument_group('Logging and Debugging');
     logging_group.add_argument('-l', '--log-level', dest='log', metavar='LEVEL', type=int, default=0, \
                             choices=range(1, 3), help='Log level (default: 0, max: 2)');
@@ -110,6 +116,14 @@ def main():
     else:
         log.setLevel(logging.WARNING);
         logging.getLogger("ToolkitDatabase").setLevel(logging.WARNING);
+
+    if args.output_fmt == 'elasticsearch':
+        if not args.elasticsearch_index:
+            raise Exception('parser', 'elasticsearch output format requires specifying index via --elasticsearch-index')
+        if not args.elasticsearch_timestamp:
+            raise Exception('parser', 'elasticsearch output format requires specifying default timestamp via --elasticsearch-timestamp')
+        opts['elasticsearch_index'] = args.elasticsearch_index
+        opts['elasticsearch_timestamp'] = args.elasticsearch_timestamp
 
     log.debug("initializing ...")
     tk = ToolkitDatabase(data_dir=args.input_dir, host_filter=args.filter_host);
