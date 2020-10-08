@@ -88,8 +88,9 @@ class GitCommitSession(object):
         '''
         Tap into the git repository.
         '''
-        self.errors = [];
-        self.latest_ts = 0;
+        self.errors = []
+        self.latest_ts = 0
+        self.per_file_commit = False
         for key, value in kwargs.iteritems():
             if key in ['repo', 'data']:
                 dp = os.path.expanduser(value);
@@ -128,7 +129,7 @@ class GitCommitSession(object):
         if self.active_branch != self.branch:
             self.errors.append('The active branch of ' + self.repo_dir + ' repository is "' + self.active_branch + '" while "' + self.branch + ' was requested", exiting ...');
 
-        if self.r.is_dirty(untracked_files=True):
+        if self.r.is_dirty(untracked_files=True) and self.per_file_commit:
             files_arr = str(self.r.git.status(porcelain=True,untracked_files=True)).split('\n');
             self.errors.append('The "' + self.branch + '" branch of "' + self.repo_dir  +  '" repository contains uncommitted or untracked content');
             files = str(self.r.git.status(porcelain=True,untracked_files=True)).split('\n');
@@ -141,131 +142,154 @@ class GitCommitSession(object):
                         self.errors.append(' - ' + gf.filename + ' (' + gf.status_index + ')');
                     else:
                         self.errors.append(' - ' + gf.filename + ' (' + gf.status_index + '/' + gf.status_worktree + ')');
+                    self.errors.append('   # git reset HEAD %s' % gf.filename)
+                    self.errors.append('   # git checkout -- %s' % gf.filename)
         return;
+
+
+    def _read_yaml(self, fp):
+        with open(fp, 'r') as fs:
+            try:
+                db = yaml.load(fs, Loader=yaml.FullLoader)
+                return db
+            except:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                self.errors.extend(traceback.format_exception(exc_type, exc_value, exc_traceback))
+        return None
 
 
     def _gather_tasks(self):
         self.summary = {};
         hosts = [];
+        host_fqdn_ref = {};
         hosts_files = {};
+        hosts_status = {};
         for dp, dns, dfs in os.walk(self.data_dir):
             for fn in dfs:
                 fp = os.path.join(dp, fn);
-                if re.search('meta.yml$', fp):
-                    logger.info('reading execution report from ' + fp);
-                    db = None;
-                    with open(fp, 'r') as fs:
-                        try:
-                            db = yaml.load(fs);
-                        except:
-                            exc_type, exc_value, exc_traceback = sys.exc_info();
-                            self.errors.extend(traceback.format_exception(exc_type, exc_value, exc_traceback));
+                if not re.search('meta.yml$', fp):
+                    continue
+                logger.info('reading execution report from ' + fp);
+                db = self._read_yaml(fp)
+                if db is None:
+                    continue;
+                if not isinstance(db, dict):
+                    self.errors.append('the "' + fp + '" is invalid metadata source (yml)');
+                    continue;
+                if 'cli' not in db:
+                    self.errors.append('the "' + fp + '" is invalid metadata source (cli)');
+                    continue;
+                if 'conf' not in db:
+                    self.errors.append('the "' + fp + '" is invalid metadata source (conf)');
+                    continue;
+                if 'host' not in db['conf']:
+                    self.errors.append('the "' + fp + '" is invalid metadata source (conf/host)');
+                    continue;
+                if 'fqdn' not in db['conf']:
+                    self.errors.append('the "' + fp + '" is invalid metadata source (conf/fqdn)');
+                    continue;
+                host = db['conf']['host'];
+                fqdn = db['conf']['fqdn'];
+                logger.debug('Host: ' + host);
+                logger.debug('FQDN: ' + fqdn);
+                if fqdn not in hosts:
+                    hosts.append(fqdn);
+                    host_fqdn_ref[host] = fqdn;
+                if fqdn not in hosts_files:
+                    hosts_files[fqdn] = [];
+                if fqdn not in hosts_status:
+                    hosts_status[fqdn] = db['status']
+                for cli_rst in db['cli']:
+                    if not isinstance(cli_rst, dict):
+                        self.errors.append('the "' + fp + '" contains invalid cli metadata (dict):\n' + pprint.pformat(cli_rst));
+                        continue;
+                    _continue = True;
+                    for i in ['path', 'sha1', 'status', '_seq']:
+                        if i not in cli_rst:
+                            _continue = False;
                             continue;
-                    if db is None:
+                    if not _continue:
                         continue;
-                    if not isinstance(db, dict):
-                        self.errors.append('the "' + fp + '" is invalid metadata source (yml)');
+                    if cli_rst['status'] != 'ok':
                         continue;
-                    if 'cli' not in db:
-                        self.errors.append('the "' + fp + '" is invalid metadata source (cli)');
-                        continue;
-                    if 'conf' not in db:
-                        self.errors.append('the "' + fp + '" is invalid metadata source (conf)');
-                        continue;
-                    if 'host' not in db['conf']:
-                        self.errors.append('the "' + fp + '" is invalid metadata source (conf/host)');
-                        continue;
-                    if 'fqdn' not in db['conf']:
-                        self.errors.append('the "' + fp + '" is invalid metadata source (conf/fqdn)');
-                        continue;
-                    host = db['conf']['host'];
-                    fqdn = db['conf']['fqdn'];
-                    output_dir = db['output_dir'];
-                    logger.debug('Host: ' + host);
-                    logger.debug('FQDN: ' + fqdn);
-                    if fqdn not in hosts:
-                        hosts.append(fqdn);
-                    if fqdn not in hosts_files:
-                        hosts_files[fqdn] = [];
-                    for cli_rst in db['cli']:
-                        if not isinstance(cli_rst, dict):
-                            self.errors.append('the "' + fp + '" contains invalid cli metadata (dict):\n' + pprint.pformat(cli_rst));
+                    _seq = cli_rst['_seq'];
+                    if not hasattr(self, 'tasks'):
+                        self.tasks = [];
+                    sub_path = cli_rst['path']
+                    sub_path = re.sub('^' + self.data_dir, '', sub_path) 
+                    if sub_path.startswith('/'):
+                        sub_path = re.sub('^/', '', sub_path)
+                    task = {
+                        'dst_path': os.path.join(self.repo_dir, sub_path),
+                        'src_path': os.path.join(self.data_dir, sub_path),
+                        'host': host,
+                        'fqdn': fqdn,
+                    }
+                    '''
+                    `path` is the file pointing to newly collected data.
+                    `sha1` is the SHA1 hash of the `path` file.
+                    '''
+                    for i in cli_rst:
+                        if i in ['path_tmp']:
                             continue;
-                        _continue = True;
-                        for i in ['path', 'sha1', 'status', '_seq']:
-                            if i not in cli_rst:
-                                _continue = False;
-                                continue;
-                            if i == 'path':
-                                cli_rst[i] = str(cli_rst[i]).replace(output_dir + '/', '');
-                        if not _continue:
+                        if i in task:
                             continue;
-                        if cli_rst['status'] != 'ok':
-                            continue;
-                        _seq = cli_rst['_seq'];
-                        if not hasattr(self, 'tasks'):
-                            self.tasks = [];
-                        task = {
-                            'dst_path': os.path.join(self.repo_dir, cli_rst['path']),
-                            'src_path': os.path.join(self.data_dir, cli_rst['path']),
-                            'host': host,
-                            'fqdn': fqdn,
-                        }
+                        task[i] = cli_rst[i];
+                    if not os.path.exists(os.path.join(self.data_dir, task['src_path'])):
+                        logger.error('the source path does not exist: ' + task['src_path']);
+                        continue;
+                    if not re.match(self.repo_dir, task['dst_path']):
                         '''
-                        `path` is the file pointing to newly collected data.
-                        `sha1` is the SHA1 hash of the `path` file.
+                        Temporary files.
                         '''
-                        for i in cli_rst:
-                            if i in ['path_tmp']:
-                                continue;
-                            if i in task:
-                                continue;
-                            task[i] = cli_rst[i];
-                        
-                        if not os.path.exists(os.path.join(self.data_dir, task['src_path'])):
-                            logger.error('the source path does not exist: ' + task['src_path']);
+                        logger.debug('detected reference to tmp file: ' + task['dst_path']);
+                        continue;
+                    task['sha1'] = self._get_sha1_hash(task['src_path']);
+                    if task['sha1'] is None:
+                        logger.error('failed to calculate SHA-1 hash for ' + task['src_path']);
+                        continue;
+                    if os.path.exists(task['dst_path']):
+                        task['dst_path_sha1'] = self._get_sha1_hash(task['dst_path']);
+                        if task['dst_path_sha1'] is None:
+                            logger.error('failed to calculate SHA-1 hash for ' + task['dst_path']);
                             continue;
-                        if not re.match(self.repo_dir, task['dst_path']):
-                            '''
-                            Temporary files.
-                            '''
-                            logger.debug('detected reference to tmp file: ' + task['dst_path']);
-                            continue;
-                        task['sha1'] = self._get_sha1_hash(task['src_path']);
-                        if task['sha1'] is None:
-                            logger.error('failed to calculate SHA-1 hash for ' + task['src_path']);
-                            continue;
-                        if os.path.exists(task['dst_path']):
-                            task['dst_path_sha1'] = self._get_sha1_hash(task['dst_path']);
-                            if task['dst_path_sha1'] is None:
-                                logger.error('failed to calculate SHA-1 hash for ' + task['dst_path']);
+                    else:
+                        logger.info('detected new file: ' + task['src_path']);
+                    if task['dst_path'] not in hosts_files[fqdn]:
+                        if 'time_start' in task:
+                            if int(task['time_start']) > self.latest_ts:
+                                self.latest_ts = int(task['time_start']);
+                        hosts_files[fqdn].append(task['dst_path']);
+                        _skip_commit = False;
+                        if 'dst_path_sha1' in task and 'sha1' in task:
+                            if task['sha1'] == task['dst_path_sha1']:
+                                logger.debug('no changes detected in ' + task['dst_path']);
+                                _skip_commit = True;
+                        if not _skip_commit:
+                            self.tasks.append(task);
+                        if fqdn not in self.summary:
+                            self.summary[fqdn] = {}
+                        if 'files' not in self.summary[fqdn]:
+                            self.summary[fqdn]['files'] = []
+                        if 'conf' not in self.summary[fqdn]:
+                            self.summary[fqdn]['conf'] = db['conf']
+                        if 'facts' not in self.summary[fqdn]:
+                            if 'facts' in db['status']:
+                                self.summary[fqdn]['facts'] = db['status']['facts']
+                        summary_task = {};
+                        for i in task:
+                            if i in ['dst_path', 'src_path', '_seq', 'sha1_pre', 'dst_path_sha1']:
                                 continue;
-                        else:
-                            logger.info('detected new file: ' + task['src_path']);
-                        if task['dst_path'] not in hosts_files[fqdn]:
-                            if 'time_start' in task:
-                                if int(task['time_start']) > self.latest_ts:
-                                    self.latest_ts = int(task['time_start']);
-                            hosts_files[fqdn].append(task['dst_path']);
-                            _skip_commit = False;
-                            if 'dst_path_sha1' in task and 'sha1' in task:
-                                if task['sha1'] == task['dst_path_sha1']:
-                                    logger.debug('no changes detected in ' + task['dst_path']);
-                                    _skip_commit = True;
-                            if not _skip_commit:
-                                self.tasks.append(task);
-                            if fqdn not in self.summary:
-                                self.summary[fqdn] = [];
-                            summary_task = {};
-                            for i in task:
-                                if i in ['dst_path', 'src_path', '_seq', 'sha1_pre']:
-                                    continue;
-                                summary_task[i] = task[i];
-                            self.summary[fqdn].append(summary_task);
+                            if i == 'path' and 'output_dir' in db:
+                                summary_task[i] = task[i].lstrip(db['output_dir'])
+                                continue
+                            summary_task[i] = task[i];
+                        self.summary[fqdn]['files'].append(summary_task);
         '''
         Discover commands that are no longer collected.
         '''
         _break = False;
+        excluded_hosts = []
         for dp, dns, dfs in os.walk(self.repo_dir):
             for fn in dfs:
                 if re.search('\.git', dp):
@@ -274,22 +298,48 @@ class GitCommitSession(object):
                     continue;
                 if re.search('meta\.(json|yml)$', fn):
                     continue;
+                if re.search('junit\.xml$', fn):
+                    continue
                 host = os.path.basename(dp);
                 fp = os.path.join(dp, fn);
-                if host not in hosts:
+                if host not in hosts and host not in host_fqdn_ref:
                     '''
                     This host was not a part of data collection.
                     '''
-                    logger.info('skip ' + host + ' / ' + fp);
+                    if host not in excluded_hosts:
+                        excluded_hosts.append(host)
+                        logger.info('skip (not part of data collection) %s' % (host));
                     #self.tasks.append({'mode': 'remove-dir', 'dst_path': fp, 'host': host});
                     continue;
-                if fp not in hosts_files[host]:
-                    logger.info('removing ' + host + ' / ' + fp);
-                    self.tasks.append({'mode': 'remove-file', 'dst_path': fp, 'host': host});
+                host_ref = host
+                if host not in hosts_files:
+                    if host in host_fqdn_ref:
+                        if host_fqdn_ref[host] in hosts_files:
+                            host_ref = host_fqdn_ref[host]
+                if host_ref not in hosts_files:
+                    logger.error('host %s is not in host files db' % (host_ref))
+                    continue
+                if fp not in hosts_files[host_ref]:
+                    if hosts_status[host_ref]['return_code'] != 0:
+                        ''' failed data collection '''
+                        if not self._is_empty_data_file(fp):
+                            logger.info('emptying (job failed) %s / %s' % (host, fp));
+                            self.tasks.append({'mode': 'empty-file', 'dst_path': fp, 'host': host, 'fqdn': fqdn});
+                    else:
+                        logger.info('removing (not in host files) %s / %s' % (host, fp));
+                        self.tasks.append({'mode': 'remove-file', 'dst_path': fp, 'host': host, 'fqdn': fqdn});
                     continue;
             if _break:
                 break;
         return;
+
+    def _is_empty_data_file(self, fp):
+        if not os.path.exists(fp):
+            return True
+        with open(fp) as f:
+            if f.readline().startswith('# empty file'):
+                return True
+        return False
 
     def _commit_file(self, commit_path, commit_msg):
         try:
@@ -304,8 +354,9 @@ class GitCommitSession(object):
                 return;
             if not hasattr(gf, 'status_index'):
                 return;
-            self.r.index.commit('\n'.join(commit_msg), skip_hooks=True);
-            logger.info('committed to ' + commit_path);
+            if self.per_file_commit:
+                self.r.index.commit('\n'.join(commit_msg), skip_hooks=True);
+                logger.info('committed to ' + commit_path);
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info();
             self.errors.extend(traceback.format_exception(exc_type, exc_value, exc_traceback));
@@ -314,7 +365,7 @@ class GitCommitSession(object):
     def _commit_tasks(self):
         for task in self.tasks:
             dp = os.path.dirname(task['dst_path']);
-            fp = task['dst_path'].replace(self.repo_dir, '');
+            fp = task['dst_path'].replace(self.repo_dir, '').lstrip('/');
             if not os.path.exists(dp):
                 logger.info('path "' + dp + '" does not exist, creating ...');
                 try:
@@ -327,35 +378,42 @@ class GitCommitSession(object):
                         self.errors.extend(traceback.format_exception(exc_type, exc_value, exc_traceback));
                         return;
             if task['mode'] in ['remove-file', 'remove-dir']:
-                logger.warning('removing ' + fp);
-                commit_msg = 'delete ' + str(fp) + ' from ' + task['host'];
+                logger.warning('removing %s' % (fp));
+                commit_msg = 'delete %s from %s' % (fp, task['host']);
+
                 self.r.index.remove(items=[fp]);
-                self.r.index.commit(commit_msg, skip_hooks=True);
-                logger.info('removed ' + fp + ' from index');
+                if self.per_file_commit:
+                    self.r.index.commit(commit_msg, skip_hooks=True);
+                    logger.info('removed file %s from index' % (fp))
                 try:
                     os.remove(task['dst_path']);
-                    logger.info('deleted ' + fp + ' from filesystem');
+                    logger.info('deleted %s from filesystem' % (fp));
                 except:
                     exc_type, exc_value, exc_traceback = sys.exc_info();
                     self.errors.extend(traceback.format_exception(exc_type, exc_value, exc_traceback));
             else:
-                if 'dst_path_sha1' in task:
-                    logger.info('detected changed file: ' +  fp + ' old/new ' + task['dst_path_sha1'] + '/' + task['sha1']);
-                else:
-                    logger.info('detected new file: ' +  fp + ' ' + task['sha1']);
-
-                with open(task['src_path'], 'r') as fr:
+                if task['mode'] in ['empty-file']:
+                    logger.warning('detected empty file: %s' % (fp));
                     with open(task['dst_path'], 'w') as fw:
-                        fw.write(fr.read());
+                        fw.write('# empty file\n');
+                else:
+                    if 'dst_path_sha1' in task:
+                        logger.info('detected changed file %s: old/new %s/%s' % (fp, task['dst_path_sha1'], task['sha1']));
+                    else:
+                        logger.info('detected new file: %s %s' % (fp, task['sha1']));
+                    with open(task['src_path'], 'r') as fr:
+                        with open(task['dst_path'], 'w') as fw:
+                            fw.write(fr.read());
                 try:
                     self.r.index.add('*');
                     commit_path = task['dst_path'];
                     commit_sbj = task['fqdn'] + ': ';
                     excluded_fields = ['dst_path', 'src_path', 'saveas', 'description', 'sha1_pre', '_seq', 'child_cli_id'];
                     files = str(self.r.git.status(porcelain=True,untracked_files=True)).split('\n');
-                    if len(files) > 1:
-                        self.errors.append('the number of staged files exceeds the expected value.');
-                        return;
+                    if self.per_file_commit:
+                        if len(files) > 1:
+                            self.errors.append('the number of staged files exceeds the expected value.');
+                            return;
                     gf = GitCommitFile(files[0]);
                     if gf.errors:
                         self.errors.extend(gf.errors);
@@ -368,16 +426,21 @@ class GitCommitSession(object):
                     if 'description' in task:
                         commit_sbj += task['description'];
                     else:
-                        commit_sbj += task['cli'];
+                        if 'cli' in task:
+                            commit_sbj += task['cli'];
                     commit_msg.append(commit_sbj);
-                    commit_msg.append('');
-                    commit_msg.append('More info:');
+                    more_info = False
                     for field in sorted(task):
                         if field in excluded_fields:
                             continue;
+                        if not more_info:
+                            commit_msg.append('');
+                            commit_msg.append('More info:');
+                            more_info = True
                         commit_msg.append('- `' + field + '`: ' + str(task[field]));
-                    self.r.index.commit('\n'.join(commit_msg), skip_hooks=True);
-                    logger.info('committed to ' + commit_path);
+                    if self.per_file_commit:
+                        self.r.index.commit('\n'.join(commit_msg), skip_hooks=True);
+                        logger.info('committed to ' + commit_path);
                 except:
                     exc_type, exc_value, exc_traceback = sys.exc_info();
                     self.errors.extend(traceback.format_exception(exc_type, exc_value, exc_traceback));
@@ -386,13 +449,22 @@ class GitCommitSession(object):
         Create a summary of changes.
         '''
         for i in self.summary:
-            metadata = {'ndmtk_files': self.summary[i]};
-            with open(os.path.join(self.repo_dir, i, i + '.meta.yml'), 'w') as f:
-                yaml.safe_dump(metadata, f, default_flow_style=False, encoding='utf-8', allow_unicode=True);
-            self._commit_file(os.path.join(self.repo_dir, i, i + '.meta.yml'), ['summary for ' + i + ' in YAML format']);
-            with open(os.path.join(self.repo_dir, i, i + '.meta.json'), 'w') as f:
-                json.dump(metadata, f, encoding='utf-8', sort_keys=True, indent=4, separators=(',', ': '));
-            self._commit_file(os.path.join(self.repo_dir, i, i + '.meta.json'), ['summary for ' + i + ' in JSON format']);
+            try:
+                h = i.split('.')[0]
+                fp = os.path.join(self.repo_dir, h, h + '.meta.yml')
+                with open(fp, 'w') as f:
+                    yaml.safe_dump(self.summary[i], f, default_flow_style=False, encoding='utf-8', allow_unicode=True);
+                self._commit_file(fp, ['summary for ' + i + ' in YAML format']);
+                fp = os.path.join(self.repo_dir, h, h + '.meta.json')
+                with open(fp, 'w') as f:
+                    json.dump(self.summary[i], f, encoding='utf-8', sort_keys=True, indent=4, separators=(',', ': '));
+                self._commit_file(fp, ['summary for ' + i + ' in JSON format']);
+            except:
+                exc_type, exc_value, exc_traceback = sys.exc_info();
+                self.errors.extend(traceback.format_exception(exc_type, exc_value, exc_traceback));
+        if not self.per_file_commit:
+            self.r.index.commit('mass commit', skip_hooks=True);
+            logger.info('committed');
 
     @staticmethod
     def _get_sha1_hash(fn):
@@ -433,6 +505,8 @@ def main():
                         choices=range(1, 3), help='Log level (default: 0, max: 2)');
     parser.add_argument('--commit', dest='commit', action='store_true',
                             help='commits to repository');
+    parser.add_argument('--per-file-commit', dest='per_file_commit', action='store_true',
+                            help='creates a commit per file, otherwise per entire directory');
     args = parser.parse_args();
     if args.ilog == 1:
         logger.setLevel(logging.INFO);
@@ -455,18 +529,23 @@ def main():
         sys.exit(1);
     logger.debug(pprint.pformat(gs.tasks));
     if args.commit:
+        if args.per_file_commit:
+            gs.per_file_commit = True
         gs.gmtime = time.gmtime(gs.latest_ts / 1000);
         if len(gs.tasks) > 0:
             gs._commit_tasks();
             if gs.errors:
                 _print_errors(gs.errors);
+                sys.exit(0)
+            logger.warning('Once completed, apply tag:');
+            logger.warning('   cd ' + gs.repo_dir);
+            logger.warning('   git tag -a v' + str(time.strftime("%Y.%m.%d-%H%M", gs.gmtime)) + ' -m \'data collected on ' + str(time.strftime("%Y/%m/%d %H:%M UTC", gs.gmtime))   + '\'');
+            logger.warning('   git push');
+            logger.warning('   git push --tags');
         else:
             logger.warning('all done. there are no pending commits.');
-        logger.warning('Once completed, apply tag:');
-        logger.warning('   cd ' + gs.repo_dir);
-        logger.warning('   git tag -a v' + str(time.strftime("%Y.%m.%d-%H%M", gs.gmtime)) + ' -m \'data collected on ' + str(time.strftime("%Y/%m/%d %H:%M UTC", gs.gmtime))   + '\'');
-        logger.warning('   git push');
-        logger.warning('   git push --tags');
+    return
+
 
 if __name__ == '__main__':
     main();

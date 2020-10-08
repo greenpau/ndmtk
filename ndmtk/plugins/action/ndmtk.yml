@@ -6,10 +6,13 @@
 #
 
 allowed_os:
+
+# Arista Networks
 - name: 'arista_eos'
   facts:
   - pattern: '(?P<os_vendor>[Aa]rista)\s+(?P<os_name>EOS|vEOS)\s*$'
     add:
+    - 'os_vendor=Arista'
     - 'os_class=arista_eos'
   - pattern: '[Ss]ystem MAC [Aa]ddress:\s+(?P<hardware_macaddr>\S{14})$'
   - pattern: 'Software image version:\s+(?P<os_version_major>\w+)\.(?P<os_version_minor>\w+)\.(?P<os_version_patch>\w+)'
@@ -26,30 +29,90 @@ allowed_os:
   - pattern: 'Uptime:\s+(?P<uptime>\d+.*)'
   - pattern: 'Total memory:\s+(?P<memory_total>\d+.*)'
   - pattern: 'Free memory:\s+(?P<memory_free>\d+.*)'
+
+# Cisco ACS
 - name: 'cisco_acs'
+
+# Cisco ASA
 - name: 'cisco_asa'
   facts:
   - pattern: '(?P<os_vendor>Cisco)\sAdaptive Security Appliance Software Version\s+(?P<os_version_major>\d+)\.(?P<os_version_minor>\w+)'
     add:
+    - 'os_vendor=Cisco'
     - 'os_name=ASA'
     - 'os_class=cisco_asa'
   - pattern: '(?P<os_vendor>Cisco)\sAdaptive Security Appliance Software Version\s+(?P<os_version>\S+)'
+    add:
+    - 'os_vendor=Cisco'
+    - 'os_name=ASA'
+    - 'os_class=cisco_asa'
   - pattern: 'Device Manager Version\s+(?P<gui_version_major>\d+)\.(?P<gui_version_minor>\w+)'
   - pattern: 'Hardware:\s+(?P<hardware_platform>\S+)\s'
   - pattern: '[Ss]erial\s+[Nn]umber:\s+(?P<hardware_serial>\S+)'
   - pattern: 'System image file is "(?P<os_image_file>\S+)"'
+  - pattern: 'hostname\s(?P<hostname>\S+)$'
+  disable_paging:
+  - 'terminal pager 0'
+
+# Cisco Misc
 - name: 'cisco_ios'
 - name: 'cisco_iosxe'
 - name: 'cisco_iosxr'
 - name: 'cisco_ironport'
 - name: 'cisco_nxos'
+  disable_paging:
+  - 'terminal pager 0'
 - name: 'cisco_nxos_cmp'
 - name: 'cisco_nxos_mds'
 - name: 'cisco_ucs'
+
+# Citrix
 - name: 'citrix_netscaler'
+  disable_paging:
+  - 'set cli mode -page OFF'
+  facts:
+  - pattern: '\s*NetScaler\s*(?P<os_version>.*), Date'
+    add:
+    - 'os_vendor=Citrix'
+    - 'os_name=Citrix Netscaler'
+    - 'os_class=citrix_netscaler'
+  - pattern: 'set ns hostName\s+(?P<hostname>.*)'
+
+# Juniper QFX
 - name: 'junos_qfx'
+  facts:
+  - pattern: 'Hostname:\s*(?P<hostname>\S+)\s*'
+  - pattern: 'Model:\s*(?P<hardware_platform>\S+)\s*'
+  - pattern: 'Junos:\s*(?P<os_version>\S+)\s*'
+    add:
+    - 'os_vendor=Juniper'
+    - 'os_name=Junos QFX'
+    - 'os_class=junos_qfx'
+  - pattern: 'JUNOS EX\s*Software Suite\s*\[(?P<os_version>\S+)\]'
+    add:
+    - 'os_vendor=Juniper'
+    - 'os_name=Junos EX'
+    - 'os_class=junos_ex'
+  disable_paging:
+  - 'set cli screen-length 0'
+
+# Juniper SRX
 - name: 'junos_srx'
+
+# Juniper MX
 - name: 'junos_mx'
+  facts:
+  - pattern: 'Hostname:\s*(?P<hostname>\S+)\s*'
+  - pattern: 'Model:\s*(?P<hardware_platform>\S+)\s*'
+  - pattern: 'Junos:\s*(?P<os_version>\S+)\s*'
+    add:
+    - 'os_vendor=Juniper'
+    - 'os_name=Junos MX'
+    - 'os_class=junos_mx'
+  disable_paging:
+  - 'set cli screen-length 0'
+
+# Generic Linux
 - name: 'generic_linux'
   facts:
   - pattern: '^NAME="?(?P<os_name>.*)["]?$'
@@ -65,8 +128,29 @@ allowed_os:
   exit_sequence:
   - 'history -c'
   - 'exit'
+
+# OpenGear Linux
 - name: 'opengear_linux'
+
+# Palo Alto Networks
 - name: 'paloalto_panos'
+  facts:
+  - pattern: 'hostname:\s*(?P<hostname>\S+)\s*'
+  - pattern: 'mac-address:\s*(?P<hardware_mac_address>\S+)\s*'
+  - pattern: 'model:\s*(?P<hardware_platform>\S+)\s*'
+  - pattern: 'serial:\s*(?P<hardware_serial>\S+)\s*'
+  - pattern: 'sw-version:\s*(?P<os_version>\S+)\s*'
+    add:
+    - 'os_vendor=Palo Alto Networks'
+    - 'os_name=PAN OS'
+    - 'os_class=paloalto_panos'
+  disable_paging:
+  - 'set cli terminal type xterm'
+  - 'set cli confirmation-prompt off'
+  - 'set cli pager off'
+  - 'set cli scripting-mode on'
+
+# Nuage Networks
 - name: 'nuage_timos'
   facts:
   - pattern: 'System Version\s*:\s*C-(?P<os_version_major>\w+)\.(?P<os_version_minor>\w+)\.(?P<os_version_patch>\w+)'

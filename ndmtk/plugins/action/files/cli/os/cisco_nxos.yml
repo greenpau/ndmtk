@@ -9,10 +9,9 @@
 
 ndmtk:
 - cli: show running-config
-  tags: configuration
-  paging: 'terminal length 0'
+  tags: ['ref:configuration']
 - cli: show version
-  tags: version
+  tags: ['ref:version']
 - description: 'BGP neighbor details'
   cli: 'show ip bgp vrf all'
   conditions_match_any:

@@ -655,6 +655,7 @@ class ActionModule(ActionBase):
                     result['changed'] = True;
                 result['ok'] = True;
 
+        self._pre_commit();
         self._commit();
         self.conf['time_end'] = int(round(time.time() * 1000));
         #display.vvv('plugin configuration:\n' + json.dumps(self.conf, indent=4, sort_keys=True), host=self.info['host']);
@@ -1487,7 +1488,7 @@ class ActionModule(ActionBase):
                 if 'status' not in self.conf['cliset'][i]:
                     continue;
                 if self.conf['cliset'][i]['status'] == 'conditional':
-                    display.vv('<' + self.info['host'] + '> found conditional cli task: "' + str(self.conf['cliset'][i]['cli']) + '"');
+                    display.vv('<%s> found conditional cli task when evaluating conditions: "%s"' % (self.info['host'], self.conf['cliset'][i]['cli']));
                     _is_conditions_match = True;
                     _is_met_conditions_precedent = True;
                     for x in ['conditions_match_all', 'conditions_match_all_nolimit', 'conditions_match_any']:
@@ -2034,7 +2035,7 @@ class ActionModule(ActionBase):
                 #display.display('<' + self.info['host'] + '> configuration file detected', color='red');
                 for i in self.conf['cliset']:
                     if self.conf['cliset'][i]['status'] == 'conditional':
-                        display.vv('<' + self.info['host'] + '> found conditional cli task: "' + str(self.conf['cliset'][i]['cli']) + '"');
+                        display.vv('<%s> found conditional cli task: "%s"' % (self.info['host'], self.conf['cliset'][i]['cli']));
                         _is_conditions_match = True;
                         _is_met_conditions_precedent = True;
                         for x in ['conditions_match_all', 'conditions_match_all_nolimit', 'conditions_match_any']:
@@ -2054,7 +2055,6 @@ class ActionModule(ActionBase):
                         if _is_conditions_match and _is_met_conditions_precedent:
                             self.conf['cliset'][i]['status'] = 'unknown';
                             break;
-
         '''
         Parse for errors and filter output prior to saving it.
         Additionally, inspect the contents for the purposes of `success_if` and `error_if`
@@ -2348,7 +2348,7 @@ class ActionModule(ActionBase):
         fc = None;
         try:
             with open(self.plugin_conf) as f:
-                fc = yaml.load(f);
+                fc = yaml.load(f, Loader=yaml.FullLoader);
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info();
             display.v('an attempt to read ' + self.plugin_name + ' configuration data from ' + str(self.plugin_conf) + ' failed.', host=self.info['host']);
@@ -2371,7 +2371,7 @@ class ActionModule(ActionBase):
         fc = None;
         try:
             with open(self.conf['cliset_exc']) as f:
-                fc = yaml.load(f);
+                fc = yaml.load(f, Loader=yaml.FullLoader);
         except:
             return;
         optional_fields = ['host', 'cli', 'os', 'description'];
@@ -2532,7 +2532,7 @@ class ActionModule(ActionBase):
         fc = None;
         try:
             with open(fn) as f:
-                fc = yaml.load(f);
+                fc = yaml.load(f, Loader=yaml.FullLoader);
         except:
             self.errors.append('an attempt to read ' + self.plugin_name + ' data from ' + str(fn) + ' failed.');
             exc_type, exc_value, exc_traceback = sys.exc_info();
@@ -3202,6 +3202,73 @@ class ActionModule(ActionBase):
                 json.dump(metadata, f, encoding='utf-8', sort_keys=True, indent=4, separators=(',', ': '));
         return;
 
+    def _pre_commit(self):
+        '''
+        This function parses the collected data and conditionally removes
+        it.
+        '''
+        for key in ['os']:
+            if key not in self.info:
+                return
+        for key in ['cliset']:
+            if key not in self.conf:
+                return
+        for _id in self.conf['cliset']:
+            if 'path' not in self.conf['cliset'][_id]:
+                continue
+            self._clean_file(self.conf['cliset'][_id]['path'], self.info)
+        return
+
+    @staticmethod
+    def _clean_file(input_file_name, host_info):
+        output_file_name = input_file_name
+        file_content = None
+        emtpy_line_pattern = '^\s*$'
+        try:
+            with open(input_file_name) as file_handle:
+                file_content = file_handle.read();
+        except:
+            return
+        if not file_content:
+            return
+        file_arr = [x.rstrip() for x in file_content.split('\n')];
+
+        if 'os' in host_info:
+            if len(file_arr) >= 2:
+                if host_info['os'] in ['paloalto_panos']:
+                    if file_arr[1] == '':
+                        file_arr.pop(0)
+                        file_arr.pop(0)
+                if re.match('junos', host_info['os']):
+                    if re.match('\{master:\d+\}', file_arr[-1]):
+                        file_arr.pop()
+        while True:
+            if len(file_arr) == 0:
+                break
+            if re.match(emtpy_line_pattern, file_arr[-1]):
+                file_arr.pop()
+            else:
+                break
+
+        while True:
+            if len(file_arr) == 0:
+                break
+            if re.match(emtpy_line_pattern, file_arr[0]):
+                file_arr.pop(0)
+            else:
+                break
+
+        try:
+            if len(file_arr) == 0:
+                with open(output_file_name, 'w') as file_handle:
+                    file_handle.write('')
+            else:
+                with open(output_file_name, 'w') as file_handle:
+                    for entry in file_arr:
+                        file_handle.write(entry);
+                        file_handle.write('\n');
+        except:
+            return
 
     def _commit(self):
         '''

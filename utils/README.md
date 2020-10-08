@@ -1,6 +1,9 @@
-# Git for Network Discovery and Management Toolkit
+# Utilities
 
-This tool is a part of [Network Discovery and Management Toolkit](https://github.com/greenpau/ndmtk).
+These tools are part of [Network Discovery and Management Toolkit](https://github.com/greenpau/ndmtk).
+
+## ndmtk-git: Source Code Control with Git
+
 It allows checking the data collected from network devices in to a Git repository.
 
 The key points relates to the use of the tool:
@@ -12,15 +15,15 @@ The key points relates to the use of the tool:
 
 The tool requires [GitPython](http://gitpython.readthedocs.io).
 
-```
+```bash
 pip install gitpython --user
 ```
 
-## Getting Started
+### Getting Started
 
 First, create and initialize a repository:
 
-```
+```bash
 mkdir -p /opt/ndmtk-data && cd /opt/ndmtk-data && git init
 ```
 
@@ -41,7 +44,25 @@ to `/tmp/runner-data`.
 Then, run this tool to commit the data in `/tmp/runner-data` to `/opt/ndmtk-data`
 Git repository.
 
-```
+```bash
 ndmtk-git -r /opt/ndmtk-data -b master -d /tmp/runner-data -l 1 --commit
 ```
 
+## ndmtk-analytics: Data Mining
+
+It allows to extract structured data from the data collected from network devices.
+
+
+### Resolve MAC Address Vendors
+
+The following command collects Organizationally Unique Identifier (OUI) data dump:
+
+```
+wget -O /opt/ouidb/oui.txt http://standards-oui.ieee.org/oui/oui.txt
+```
+
+Next, the data dump can be referenced when retrieving ARP data:
+
+```
+ndmtk-analytics -i /opt/ansible-data --arp-entries --csv --mac-vendor-ref /opt/ouidb/oui.txt -o /tmp/arp_entries.csv
+```
