@@ -645,12 +645,15 @@ class ToolkitDatabase(object):
                         s = ' '
                         if part.count(':') == 1:
                             s = ':'
-                        j = part.index(s)
-                        k = part[:j].strip().lower().replace(' ', '_')
-                        v = part[j:].strip()
-                        if part.count(':') == 1:
-                            v = part[j+1:].strip()
-                        neighbors[i][k] = v
+                        try:
+                            j = part.index(s)
+                            k = part[:j].strip().lower().replace(' ', '_')
+                            v = part[j:].strip()
+                            if part.count(':') == 1:
+                                v = part[j+1:].strip()
+                            neighbors[i][k] = v
+                        except:
+                            pass
                     continue
             self.log.info("unmatched line: %s" % (line))
         return neighbors

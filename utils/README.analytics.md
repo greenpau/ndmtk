@@ -19,9 +19,30 @@ utils/ndmtk-analytics -i ${NDMTK_SRC_DIR} --interface-props --format json -o ${N
 utils/ndmtk-analytics --edge-discovery \
     --ip-interface-ref ${NDMTK_DST_DIR}/ip_interface.json \
     --arp-table-ref ${NDMTK_DST_DIR}/arp_entries.json \
+    --edge-node-ref ${NDMTK_DST_DIR}/registered_edge_nodes.json \
     -o ${NDMTK_DST_DIR}/unregistered_edge_nodes.txt \
     --format csv -l 2
 ```
+
+The `registered_edge_nodes.json` file is in the following format:
+
+```json
+[
+    {
+        "name": "Verizon MPLS Network",
+        "networks": [
+            "10.1.0.0/16"
+        ]
+    },
+    {
+        "name": "AT&T MPLS Network",
+        "networks": [
+            "10.2.0.0/16"
+        ]
+    }
+]
+```
+
 
 Additionally, the same utility could be used to bulk upload the data to Elasticsearch:
 
